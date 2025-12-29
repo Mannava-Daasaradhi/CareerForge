@@ -31,7 +31,8 @@ function InterviewContent() {
       const aiMsg: Message = { role: "ai", content: response.reply };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
-      console.error(Chat Error: ${error});
+      // FIXED: Added proper quotes here
+      console.error("Chat Error:", error);
       const errorMsg: Message = { role: "ai", content: "⚠️ Connection Lost." };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -68,7 +69,7 @@ function InterviewContent() {
           <div className="text-center text-gray-500 mt-20">
             <p className="mb-2">System initialized for {username}.</p>
             <p>Trust Level: {parseInt(trustScore) > 70 ? "HIGH - Standard Protocol" : "LOW - Sandboxed Mode"}</p>
-            <p className="mt-4">Type "Ready" to begin.</p>
+            <p className="mt-4">Type &quot;Ready&quot; to begin.</p>
           </div>
         )}
 

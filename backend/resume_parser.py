@@ -20,15 +20,24 @@ def extract_text_from_pdf(file_path):
     text = ""
     with pdfplumber.open(file_path) as pdf:
         for page in pdf.pages:
-            text += page.extract_text() + "\n"
+            extracted = page.extract_text()
+            if extracted:
+                text += extracted + "\n"
     return text
 
 def analyze_resume(file_path: str, target_role: str = "Software Engineer"):
     """
     1. Extracts text.
-    2. Sends it to AI to grade against the Target Role.
+    2. TRUNCATES it to 10,000 chars (approx 2.5k tokens) to prevent API crashes.
+    3. Sends it to AI to grade against the Target Role.
     """
     resume_text = extract_text_from_pdf(file_path)
+    
+    # --- CRITICAL FIX: Limit text size for API ---
+    # 10,000 characters is plenty for a 2-page resume.
+    if len(resume_text) > 10000:
+        resume_text = resume_text[:10000] + "\n...[TRUNCATED DUE TO LENGTH]..."
+    # ---------------------------------------------
     
     # AI Prompt
     system_prompt = (

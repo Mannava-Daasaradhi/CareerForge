@@ -1,9 +1,15 @@
 import os
+from dotenv import load_dotenv
+
+# LOAD ENV FIRST (Critical Fix)
+load_dotenv()
+
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from agent_state import InterviewState
 
-# Initialize the Groq Model (Llama 3.3 70B is fast and smart)
+# Initialize the Groq Model (Llama 3.3 70B)
+# Now the key will be visible because we loaded the .env above
 llm = ChatGroq(
     temperature=0.7, 
     model_name="llama-3.3-70b-versatile",
@@ -29,13 +35,10 @@ def lead_interviewer_node(state: InterviewState):
         f"Keep your questions concise (under 2 sentences)."
     )
     
-    # If this is the start of the conversation
     if not messages:
         intro_msg = f"Hello. I see you're applying for a role involving {topic}. Let's jump straight in. Ready?"
         return {"messages": [HumanMessage(content=intro_msg)]}
 
-    # Generate the next response using the AI
-    # We pass the system prompt + conversation history
     conversation = [SystemMessage(content=system_prompt)] + messages
     response = llm.invoke(conversation)
     
