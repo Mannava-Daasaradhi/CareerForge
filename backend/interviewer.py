@@ -1,65 +1,73 @@
+# FILE: backend/interviewer.py
 import os
 from dotenv import load_dotenv
-
-# LOAD ENV FIRST
-load_dotenv()
-
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from agent_state import InterviewState
 
-# Initialize the Groq Model (Llama 3.3 70B)
+load_dotenv()
+
 llm = ChatGroq(
-    temperature=0.7, 
+    temperature=0.6, 
     model_name="llama-3.3-70b-versatile",
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
 def lead_interviewer_node(state: InterviewState):
     """
-    The Lead Interviewer Node:
-    1. Looks at the chat history AND the Shadow Auditor's critique.
-    2. Generates the next question.
+    The Lead Interviewer:
+    Dynamically adjusts persona based on the 'Trust Score' and Flags.
     """
-    topic = state.get("topic", "General Engineering")
-    difficulty = state.get("difficulty_level", 50)
+    topic = state.get("topic", "System Design")
+    difficulty = state.get("difficulty_level", "Standard") # Standard vs Hardcore
+    trust_score = state.get("trust_score", 50)
+    
     messages = state.get("messages", [])
     
-    # 1. Extract Secret Feedback (The "Whisper" in the ear)
-    critique = state.get("shadow_critique", "")
+    # Signals
+    shadow_critique = state.get("shadow_critique", "")
+    red_team_flag = state.get("red_team_flag", "None")
     
-    # 2. Define the Persona
-    base_prompt = (
-        f"You are a Senior Technical Interviewer for a high-stakes role."
-        f"Topic: {topic}. Current Difficulty: {difficulty}/100.\n"
-        f"Your Goal: Assess the candidate's depth. Do NOT give away answers."
-        f"Keep your questions concise (under 2 sentences)."
+    # Base Persona
+    persona = (
+        f"You are a Lead Technical Interviewer. Topic: {topic}.\n"
+        f"Current Trust Score: {trust_score}/100.\n"
+        f"Difficulty Mode: {difficulty.upper()}.\n"
     )
     
-    # 3. Dynamic Prompt Injection
-    # If the Shadow Auditor flagged something, the Interviewer MUST attack it.
-    if critique and critique != "None":
-        base_prompt += (
-            f"\n\n[URGENT FEEDBACK FROM AUDITOR]: The candidate's last answer had issues: '{critique}'. "
-            f"Do NOT let this slide. Ask a sharp follow-up question exposing this specific weakness."
-        )
-        
-    # Check if the last message was a Sandbox Failure (SystemMessage)
-    if messages and isinstance(messages[-1], SystemMessage) and "SYSTEM_SANDBOX_OUTPUT" in messages[-1].content:
-        base_prompt += (
-            f"\n\n[OBSERVATION]: The candidate wrote code, and we ran it. "
-            f"Analyze the 'SYSTEM_SANDBOX_OUTPUT' in the chat history. "
-            f"If it failed/errored, ask them to explain the bug. If it passed, ask about edge cases."
-        )
+    # Logic Injection
+    if difficulty == "Hardcore":
+        persona += "MODE: RUTHLESS. The candidate is failing. Do not be polite. Drill into their specific weaknesses."
+    else:
+        persona += "MODE: Professional but skeptical."
 
-    if not messages:
-        intro_msg = f"Hello. I see you're applying for a role involving {topic}. Let's jump straight in. Ready?"
-        return {"messages": [HumanMessage(content=intro_msg)]}
-
-    # Construct full context
-    conversation = [SystemMessage(content=base_prompt)] + messages
+    # Contextual Attacks
+    attack_vector = ""
     
-    # Generate Response
+    # 1. Red Team Attack (Over-engineering)
+    if red_team_flag and "FLAG:" in red_team_flag:
+        attack_vector = (
+            f"\n[CRITICAL]: The Red Team flagged their code: '{red_team_flag}'. "
+            "Ignore everything else. DEMAND they explain why they wrote such bloated code."
+        )
+    
+    # 2. Shadow Auditor Attack (Vague answers)
+    elif shadow_critique and "vague" in shadow_critique.lower():
+        attack_vector = (
+            f"\n[FEEDBACK]: The Auditor noted the last answer was vague. "
+            "Ask a specific follow-up question that requires exact syntax or implementation details."
+        )
+
+    # 3. Sandbox Output check
+    if messages and "SYSTEM_SANDBOX_OUTPUT" in messages[-1].content:
+        persona += "\n[OBSERVATION]: The candidate just ran code. Review the 'SYSTEM_SANDBOX_OUTPUT' above. If it failed, ask them to fix it."
+
+    system_msg = SystemMessage(content=persona + attack_vector)
+    
+    # We reconstruct the history for the LLM, putting the System Prompt first
+    # (Excluding previous system prompts to save tokens/confusion)
+    conversation = [system_msg] + [m for m in messages if not isinstance(m, SystemMessage)]
+    
     response = llm.invoke(conversation)
     
     return {"messages": [response]}

@@ -1,44 +1,60 @@
+# FILE: backend/code_sandbox.py
 import os
 import requests
 import re
 from dotenv import load_dotenv
 from langchain_core.messages import SystemMessage, HumanMessage
 from agent_state import InterviewState
+from ast_linter import lint_code_security  # <--- NEW IMPORT
 
 load_dotenv()
 
-# Use the Piston public API or your self-hosted instance
-# Default: https://emkc.org/api/v2/piston
 PISTON_BASE_URL = os.getenv("PISTON_API_URL", "https://emkc.org/api/v2/piston")
 
-def execute_code(language: str, code: str):
+def get_adversarial_test(language: str, topic: str) -> str:
     """
-    Executes code via Piston API (Sandboxed).
-    Endpoint: POST /api/v2/piston/execute
+    Returns hidden test cases based on topic.
+    In a real app, this would come from the 'skills_graph' database.
     """
+    if language != "python": return ""
+    
+    # Example: If topic is "Algorithms", ensure they handle edge cases
+    return """
+# --- ADVERSARIAL TEST SUITE (HIDDEN) ---
+try:
+    print(f"Test Run: Input(0) -> {solution(0)}") 
+    print(f"Test Run: Input(-1) -> {solution(-1)}")
+except NameError:
+    print("Error: You must define a function named 'solution'.")
+except Exception as e:
+    print(f"Runtime Error: {e}")
+"""
+
+def execute_code(language: str, code: str, run_tests: bool = False, topic: str = ""):
+    """
+    Executes code with AST Linting + Piston Sandbox + Adversarial Tests.
+    """
+    # 1. AST Linter (Security Layer)
+    lint_result = lint_code_security(code, language)
+    if not lint_result["valid"]:
+        return f"[LINTER BLOCK]: {lint_result['error']}"
+
+    # 2. Test Injection (Adversarial Layer)
+    final_code = code
+    if run_tests and language == "python":
+        test_suite = get_adversarial_test(language, topic)
+        if test_suite:
+            final_code += f"\n{test_suite}"
+
+    # 3. Piston Execution
     url = f"{PISTON_BASE_URL.rstrip('/')}/execute"
-    
-    # Map friendly names to Piston runtimes
-    lang_map = {
-        "py": "python",
-        "python": "python",
-        "js": "javascript",
-        "javascript": "javascript",
-        "ts": "typescript",
-        "typescript": "typescript",
-        "go": "go",
-        "rust": "rust",
-        "java": "java",
-        "c": "c",
-        "cpp": "c++"
-    }
-    
+    lang_map = {"py": "python", "js": "javascript", "ts": "typescript"}
     target_lang = lang_map.get(language.lower(), language.lower())
     
     payload = {
         "language": target_lang,
-        "version": "*", # Use latest available version
-        "files": [{"content": code}]
+        "version": "*",
+        "files": [{"content": final_code}]
     }
     
     try:
@@ -46,57 +62,51 @@ def execute_code(language: str, code: str):
         response.raise_for_status()
         result = response.json()
         
-        # Parse Piston Output
         if "run" in result:
             output = result["run"].get("output", "")
             stderr = result["run"].get("stderr", "")
-            # Combine stdout and stderr
-            full_out = output
-            if stderr:
-                full_out += f"\n[STDERR]\n{stderr}"
+            full_out = output + (f"\n[STDERR]\n{stderr}" if stderr else "")
             return full_out.strip()
-        
-        return "No output returned from Sandbox."
-        
+        return "No output from Sandbox."
     except Exception as e:
-        return f"Sandbox Execution Failed: {str(e)}"
+        return f"Sandbox Connection Failed: {str(e)}"
 
 def code_execution_node(state: InterviewState):
     """
-    LangGraph Node:
-    1. Scans the last USER message for Markdown code blocks.
-    2. If found, executes them in the Piston Sandbox.
-    3. Appends the output to the chat history as a SystemMessage.
+    Engine 2: The Cursed Sandbox Node.
     """
     messages = state.get("messages", [])
-    if not messages:
-        return {}
+    if not messages: return {}
     
     last_msg = messages[-1]
-    
-    # Only execute if the *User* provided the code
-    if not isinstance(last_msg, HumanMessage):
-        return {}
+    if not isinstance(last_msg, HumanMessage): return {}
 
-    content = last_msg.content
-    
-    # Regex to capture content inside ```lang ... ```
-    # Example matches: ```python\nprint('hello')\n```
+    # Extract code
     pattern = r"```(\w+)\s*\n(.*?)```"
-    matches = re.findall(pattern, content, re.DOTALL)
+    matches = re.findall(pattern, last_msg.content, re.DOTALL)
     
     if not matches:
         return {}
         
     outputs = []
+    # Check if we are in "Hardcore" mode (Adversarial)
+    is_hardcore = state.get("difficulty_level") == "Hardcore"
+    topic = state.get("topic", "General")
+
     for lang, code in matches:
-        print(f"--- [Sandbox] Executing {lang} code... ---")
-        out = execute_code(lang, code)
+        print(f"--- [Sandbox] Running {lang} (Adversarial: {is_hardcore}) ---")
+        
+        # Execute with Tests if Hardcore
+        out = execute_code(lang, code, run_tests=is_hardcore, topic=topic)
+        
+        # Prefix output so LLM knows it's from the system
         outputs.append(f"Code ({lang}) Execution Result:\n{out}")
         
     if outputs:
         final_output = "\n\n".join(outputs)
-        # Return a SystemMessage so the Lead Interviewer (AI) sees the result
-        return {"messages": [SystemMessage(content=f"SYSTEM_SANDBOX_OUTPUT:\n{final_output}")]}
+        # Update State
+        return {
+            "messages": [SystemMessage(content=f"SYSTEM_SANDBOX_OUTPUT:\n{final_output}")]
+        }
     
     return {}
