@@ -1,12 +1,12 @@
-# FILE: backend/shadow_auditor.py
 import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import HumanMessage
 from agent_state import InterviewState
 
 load_dotenv()
 
+# Initialize Gemini 1.5 Flash
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash",
     google_api_key=os.getenv("GOOGLE_API_KEY"),
@@ -15,54 +15,74 @@ llm = ChatGoogleGenerativeAI(
 
 def shadow_auditor_node(state: InterviewState):
     """
-    The Shadow Auditor[cite: 13]:
-    1. Listens to the User.
-    2. Updates 'trust_score' based on answer quality.
-    3. Flags 'Vibecoding' (AI Fluff).
+    Engine 1: The Shadow Auditor.
+    Listens -> Critiques -> Updates Score.
     """
     messages = state.get("messages", [])
-    current_score = state.get("trust_score", 50) # Default start at 50 [cite: 55]
+    current_score = state.get("trust_score", 50)
     
-    if not messages or messages[-1].type == "ai":
+    # 1. Safety Checks
+    if not messages:
+        return {}
+    
+    last_msg = messages[-1]
+    # Only audit User messages, not AI messages
+    if last_msg.type == "ai":
         return {}
 
-    last_user_message = messages[-1].content
-    current_topic = state.get("topic", "General Engineering")
+    last_user_message = last_msg.content
+    topic = state.get("topic", "General Engineering")
 
-    # Engineered Prompt for Scoring
-    system_prompt = (
-        f"You are a silent Technical Auditor evaluating a candidate on {current_topic}. "
-        f"Analyze their latest answer: '{last_user_message}'.\n\n"
-        f"SCORING RULES:\n"
-        f"- If the answer is vague/buzzwords -> Score Change: -10\n"
-        f"- If the answer is factually wrong -> Score Change: -20\n"
-        f"- If the answer is correct but shallow -> Score Change: +2\n"
-        f"- If the answer is deep/insightful -> Score Change: +5\n\n"
-        f"Output format: 'SCORE_CHANGE: <int> | CRITIQUE: <short text>'"
+    print(f"--- [AUDITOR] Analyzing: {last_user_message[:30]}... ---")
+
+    # 2. The Prompt (Strict JSON-like format)
+    audit_instruction = (
+        f"ROLE: Silent Technical Auditor.\n"
+        f"CONTEXT: Candidate is answering a question about '{topic}'.\n"
+        f"INPUT: '{last_user_message}'\n\n"
+        f"TASK: Rate the answer quality and output a score penalty/bonus.\n"
+        f"RULES:\n"
+        f"- AI/Vague/Buzzwords -> SCORE_CHANGE: -10\n"
+        f"- Incorrect/False -> SCORE_CHANGE: -20\n"
+        f"- Shallow/Basic -> SCORE_CHANGE: +2\n"
+        f"- Deep/Insightful -> SCORE_CHANGE: +5\n\n"
+        f"OUTPUT FORMAT: 'SCORE_CHANGE: <int> | CRITIQUE: <text>'"
     )
 
-    response = llm.invoke([SystemMessage(content=system_prompt)])
-    content = response.content.strip()
-    
-    # Parse the output
-    score_change = 0
-    critique = "No critique."
-    
     try:
+        # 3. Call Gemini (Using HumanMessage to prevent 500 Error)
+        response = llm.invoke([HumanMessage(content=audit_instruction)])
+        content = response.content.strip()
+        
+        # 4. Parse Output
+        score_change = 0
+        critique = "No critique."
+        
         if "SCORE_CHANGE:" in content:
             parts = content.split("|")
-            score_part = parts[0].replace("SCORE_CHANGE:", "").strip()
-            critique_part = parts[1].replace("CRITIQUE:", "").strip()
-            score_change = int(score_part)
-            critique = critique_part
-    except:
-        # Fallback if LLM breaks format
-        critique = content
+            for part in parts:
+                if "SCORE_CHANGE:" in part:
+                    try:
+                        # Extract number safely
+                        num_str = part.replace("SCORE_CHANGE:", "").strip()
+                        score_change = int(num_str)
+                    except: pass
+                if "CRITIQUE:" in part:
+                    critique = part.replace("CRITIQUE:", "").strip()
+        else:
+            # Fallback for malformed output
+            critique = content[:100]
 
-    # Calculate new score (Clamped 0-100)
-    new_score = max(0, min(100, current_score + score_change))
-    
-    return {
-        "shadow_critique": critique, 
-        "trust_score": new_score
-    }
+        # 5. Update Score
+        new_score = max(0, min(100, current_score + score_change))
+        
+        print(f"--- [AUDITOR] Verdict: {score_change} pts. Old: {current_score} -> New: {new_score} ---")
+        
+        return {
+            "shadow_critique": critique, 
+            "trust_score": new_score
+        }
+
+    except Exception as e:
+        print(f"--- [AUDITOR ERROR] {e} ---")
+        return {"trust_score": current_score} # Fail safe

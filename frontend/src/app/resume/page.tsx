@@ -3,10 +3,19 @@
 import React, { useState } from "react";
 import { uploadResume } from "../../lib/api";
 
+// Define the shape of the analysis object
+interface AnalysisResult {
+  raw_text: string;
+  skills_detected: string[];
+  red_flags: string[];
+}
+
 export default function ResumePage() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  // Change state type to match the object or null
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -19,13 +28,16 @@ export default function ResumePage() {
 
     setLoading(true);
     setResult(null);
+    setError(null);
 
     try {
       const data = await uploadResume(file);
+      // The backend returns { filename: "...", analysis: { ... } }
+      // So we set result to data.analysis
       setResult(data.analysis);
     } catch (err) {
       console.error(err);
-      setResult("❌ Error: Could not analyze resume. Ensure backend is running.");
+      setError("❌ Error: Could not analyze resume. Ensure backend is running.");
     } finally {
       setLoading(false);
     }
@@ -77,15 +89,59 @@ export default function ResumePage() {
           {loading ? "SCANNING DOCUMENT..." : "INITIATE ANALYSIS"}
         </button>
 
-        {/* Results Area */}
+        {/* Error Message */}
+        {error && (
+          <div className="p-4 bg-red-900/50 border border-red-500 text-red-200 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Results Area (Correctly Rendering the Object) */}
         {result && (
-          <div className="bg-gray-900 border border-purple-500/30 rounded-lg p-6 mt-8 animate-fade-in">
-            <h3 className="text-purple-400 mb-4 text-sm uppercase tracking-widest">
-              Analysis Report
-            </h3>
-            <pre className="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed">
-              {result}
-            </pre>
+          <div className="bg-gray-900 border border-purple-500/30 rounded-lg p-6 mt-8 animate-fade-in space-y-6">
+            
+            {/* 1. Skills Section */}
+            <div>
+              <h3 className="text-purple-400 mb-2 text-sm uppercase tracking-widest font-bold">
+                Skills Detected
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {result.skills_detected && result.skills_detected.length > 0 ? (
+                  result.skills_detected.map((skill, idx) => (
+                    <span key={idx} className="bg-emerald-900/50 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-sm">
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-500 italic">No specific keywords found.</span>
+                )}
+              </div>
+            </div>
+
+            {/* 2. Red Flags Section */}
+            {result.red_flags && result.red_flags.length > 0 && (
+               <div>
+                <h3 className="text-red-400 mb-2 text-sm uppercase tracking-widest font-bold">
+                  Red Flags Detected
+                </h3>
+                <ul className="list-disc list-inside text-red-300/80 space-y-1">
+                  {result.red_flags.map((flag, idx) => (
+                    <li key={idx}>{flag}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 3. Raw Text Preview */}
+            <div>
+              <h3 className="text-gray-500 mb-2 text-xs uppercase tracking-widest">
+                Raw Extraction Preview
+              </h3>
+              <div className="bg-black p-4 rounded border border-gray-800 h-48 overflow-y-auto text-xs text-gray-400">
+                 {result.raw_text}
+              </div>
+            </div>
+
           </div>
         )}
         
