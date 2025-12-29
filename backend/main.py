@@ -3,18 +3,20 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 
-# 1. Load Environment Variables (Securely loads .env)
+# Import our new Auditor Logic
+from auditor import GitHubAuditor
+
+# 1. Load Environment Variables
 load_dotenv()
 
 # 2. Initialize the App
 app = FastAPI(
     title="CareerForge API",
     description="The Trust-Based Agentic Career OS Backend",
-    version="0.1.0"
+    version="0.2.0"
 )
 
-# 3. CORS Configuration (Allows Frontend to talk to Backend)
-# In production, replace "*" with your actual frontend domain
+# 3. CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,7 +25,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 4. Health Check Route (To verify server is alive)
+# Initialize the Auditor Agent
+auditor_agent = GitHubAuditor()
+
+# 4. Health Check Route
 @app.get("/")
 async def health_check():
     return {
@@ -32,13 +37,20 @@ async def health_check():
         "version": "Pre-Alpha"
     }
 
-# 5. Placeholder for future Agent Routes
-@app.get("/api/test-secure-ingestion")
-async def test_ingestion():
-    # This will eventually trigger the "Airlock" engine
-    return {"message": "Ingestion Engine is ready for implementation"}
+# 5. NEW: The Audit Endpoint
+@app.get("/api/audit/{username}")
+async def audit_user(username: str):
+    """
+    Scans a GitHub profile and returns a Trust Score.
+    """
+    print(f"Auditing user: {username}...") # Log to terminal
+    result = auditor_agent.calculate_trust_score(username)
+    
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+        
+    return result
 
 if __name__ == "__main__":
     import uvicorn
-    # Runs the server on port 8000
     uvicorn.run(app, host="0.0.0.0", port=8000)
