@@ -32,3 +32,5 @@ logs/
 # IDEs
 .vscode/
 .idea/
+
+temp_*.pdf
