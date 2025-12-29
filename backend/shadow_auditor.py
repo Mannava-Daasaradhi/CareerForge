@@ -1,19 +1,23 @@
 import os
 from dotenv import load_dotenv
 
-# LOAD ENV FIRST (Critical Fix)
 load_dotenv()
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage
 from agent_state import InterviewState
 
 # Initialize Gemini 1.5 Flash
-llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
-    temperature=0.0
-)
+# We wrap this in a try/except block later to handle missing keys gracefully
+try:
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash",
+        google_api_key=os.getenv("GOOGLE_API_KEY"),
+        temperature=0.0
+    )
+    API_ACTIVE = True
+except Exception:
+    API_ACTIVE = False
 
 def shadow_auditor_node(state: InterviewState):
     """
@@ -22,12 +26,21 @@ def shadow_auditor_node(state: InterviewState):
     2. Critiques it for depth, accuracy, and "BS" (Buzzwords).
     3. Saves the critique to the state.
     """
+    if not API_ACTIVE:
+        return {"shadow_critique": "Auditor Offline (Check GOOGLE_API_KEY)"}
+
     messages = state.get("messages", [])
     
+    # Skip if no messages or if the last message was AI
     if not messages or messages[-1].type == "ai":
         return {}
 
     last_user_message = messages[-1].content
+    
+    # Fallback if transcription was empty
+    if not last_user_message:
+        return {}
+
     current_topic = state.get("topic", "Tech")
 
     system_prompt = (
@@ -41,6 +54,6 @@ def shadow_auditor_node(state: InterviewState):
         response = llm.invoke([SystemMessage(content=system_prompt)])
         return {"shadow_critique": response.content}
     except Exception as e:
-        print(f"Shadow Auditor Offline/Error: {e}")
-        # Return "None" so the Lead Interviewer ignores the missing critique
-        return {"shadow_critique": "None"}
+        # Prevent crash if Google API fails
+        print(f"Shadow Auditor Error: {e}")
+        return {"shadow_critique": "Auditor Silent (API Error)"}

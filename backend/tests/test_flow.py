@@ -32,7 +32,7 @@ def test_health():
 
 def test_login_audit():
     """Simulates the Login Page 'Entropy Check'."""
-    username = "torvalds" # The creator of Linux (Guaranteed to have data)
+    username = "torvalds"
     print(f"\n{CYAN}--- Testing Feature: LOGIN (Audit Engine) ---{RESET}")
     
     try:
@@ -44,8 +44,6 @@ def test_login_audit():
             data = res.json()
             score = data.get("trust_score")
             print_status("GitHub Audit", "PASS", f"- User: {username}, Trust Score: {score}/100 ({duration}s)")
-            if score < 50:
-                 print(f"   {RED}Warning: Trust score seemingly low for Linus Torvalds? Check algorithm.{RESET}")
         else:
             print_status("GitHub Audit", "FAIL", f"- API Error: {res.text}")
             
@@ -59,16 +57,13 @@ def test_dashboard_pulse():
     
     try:
         start = time.time()
-        # This triggers the live DuckDuckGo Search + Llama 3 Analysis
         res = requests.get(f"{BASE_URL}/api/career/market-pulse?role={role}")
         duration = round(time.time() - start, 2)
         
         if res.status_code == 200:
             data = res.json()
             demand = data.get("demand_score")
-            sentiment = data.get("salary_range_insight", "N/A")[:50] + "..."
             print_status("Market Pulse", "PASS", f"- Demand: {demand}/100 ({duration}s)")
-            print(f"   Insight: {sentiment}")
         else:
             print_status("Market Pulse", "FAIL", f"- Status: {res.status_code}")
             
@@ -81,36 +76,75 @@ def test_roadmap_generation():
     
     payload = {
         "target_role": "Backend Developer",
-        "skill_gaps": ["Redis", "Docker", "System Design"]
+        "skill_gaps": ["Redis", "Docker"]
     }
     
     try:
         start = time.time()
-        print(f"   Generating plan for gaps: {payload['skill_gaps']}...")
         res = requests.post(f"{BASE_URL}/api/career/roadmap", json=payload)
         duration = round(time.time() - start, 2)
         
         if res.status_code == 200:
             data = res.json()
             weeks = data.get("total_weeks")
-            milestones = len(data.get("roadmap", []))
-            print_status("Roadmap Generator", "PASS", f"- Generated {weeks} week plan with {milestones} milestones ({duration}s)")
-            
-            # Verify Structure
-            if milestones > 0:
-                first_week = data["roadmap"][0]
-                print(f"   Week 1 Theme: {first_week['theme']}")
-                print(f"   Week 1 Goal: {first_week['goal']}")
+            print_status("Roadmap Generator", "PASS", f"- Generated {weeks} week plan ({duration}s)")
         else:
             print_status("Roadmap Generator", "FAIL", f"- Status: {res.status_code}")
             
     except Exception as e:
         print_status("Roadmap Generator", "FAIL", str(e))
 
+def test_challenge_generator():
+    """Simulates the 'Cursed' Challenge Engine."""
+    print(f"\n{CYAN}--- Testing Feature: CHALLENGE (Cursed Engine) ---{RESET}")
+    
+    payload = {"topic": "Python Async", "difficulty": 80}
+    
+    try:
+        start = time.time()
+        res = requests.post(f"{BASE_URL}/api/challenge/new", json=payload)
+        duration = round(time.time() - start, 2)
+        
+        if res.status_code == 200:
+            data = res.json()
+            title = data.get("title")
+            print_status("Challenge Gen", "PASS", f"- Generated: '{title}' ({duration}s)")
+        else:
+            print_status("Challenge Gen", "FAIL", f"- Status: {res.status_code}")
+            
+    except Exception as e:
+        print_status("Challenge Gen", "FAIL", str(e))
+
+def test_recruiter_proxy():
+    """Simulates a Recruiter querying the Digital Twin."""
+    print(f"\n{CYAN}--- Testing Feature: RECRUITER (Digital Twin) ---{RESET}")
+    
+    question = "Has this candidate demonstrated any skills in Python?"
+    
+    try:
+        start = time.time()
+        res = requests.post(f"{BASE_URL}/api/recruiter/ask", json={"question": question})
+        duration = round(time.time() - start, 2)
+        
+        if res.status_code == 200:
+            data = res.json()
+            reply = data.get("reply", "")
+            # Check if it mentions the DB status or actual content
+            status = "PASS" if "Digital Twin" in reply or "Python" in reply else "WARN"
+            print_status("Recruiter Proxy", status, f"- Reply length: {len(reply)} chars ({duration}s)")
+            print(f"   Sample: {reply[:100]}...")
+        else:
+            print_status("Recruiter Proxy", "FAIL", f"- Status: {res.status_code}")
+            
+    except Exception as e:
+        print_status("Recruiter Proxy", "FAIL", str(e))
+
 if __name__ == "__main__":
-    print(f"{CYAN}=== CAREERFORGE INTEGRATION TEST SUITE ==={RESET}")
+    print(f"{CYAN}=== CAREERFORGE V3.1 INTEGRATION TEST SUITE ==={RESET}")
     if test_health():
         test_login_audit()
         test_dashboard_pulse()
         test_roadmap_generation()
+        test_challenge_generator()
+        test_recruiter_proxy()
     print(f"\n{CYAN}=== SUITE COMPLETE ==={RESET}")

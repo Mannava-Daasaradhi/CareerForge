@@ -13,7 +13,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
 
-# --- IMPORT EXISTING ENGINES ---
+# --- IMPORT ALL ENGINES ---
 from auditor import GitHubAuditor
 from graph import app_graph
 from resume_parser import analyze_resume
@@ -21,14 +21,13 @@ from database import db_manager
 from voice_processor import VoiceProcessor
 from roadmap_generator import generate_learning_roadmap
 from demand_analyzer import analyze_market_demand
-
-# --- NEW IMPORTS (Challenge Engine) ---
 from challenge_generator import generate_challenge
 from code_sandbox import execute_code 
+from recruiter_proxy import query_digital_twin
 
 load_dotenv()
 
-app = FastAPI(title="CareerForge PI Engine", version="3.0.0-Gold")
+app = FastAPI(title="CareerForge PI Engine", version="3.1.0-Platinum")
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,10 +68,16 @@ class ChallengeRequest(BaseModel):
 class VerifySolutionRequest(BaseModel):
     user_code: str
     language: str
-    test_cases: List[Any] # The hidden tests from the generated challenge
+    test_cases: List[Any]
 
-# --- Helper Functions ---
+class RecruiterQuery(BaseModel):
+    question: str
+
+# --- Helper Functions (FIXED) ---
 def sanitize_input(text: str) -> str:
+    """
+    Redacts PII (Email/Phone) from text if security is active.
+    """
     if not SECURITY_ACTIVE: return text
     try:
         results = analyzer.analyze(text=text, entities=["EMAIL_ADDRESS", "PHONE_NUMBER"], language="en")
@@ -83,9 +88,9 @@ def sanitize_input(text: str) -> str:
 
 @app.get("/")
 async def health_check():
-    return {"status": "active", "version": "3.0.0", "modules": ["Voice", "Roadmap", "Sniper", "Cursed-Sandbox"]}
+    return {"status": "active", "version": "3.1.0", "modules": ["Voice", "Roadmap", "Sniper", "Cursed-Sandbox", "Recruiter-Proxy"]}
 
-# 1. AUDIT (Login Entropy)
+# 1. AUDIT
 @app.get("/api/audit/{username}")
 async def audit_user(username: str):
     result = auditor_agent.calculate_trust_score(username)
@@ -137,45 +142,41 @@ async def generate_roadmap(request: RoadmapRequest):
 async def market_pulse(role: str, location: str = "Remote"):
     return analyze_market_demand(role, location)
 
-# 6. CURSED CHALLENGE GENERATOR (NEW)
+# 6. CURSED CHALLENGE GENERATOR
 @app.post("/api/challenge/new")
 async def create_challenge(request: ChallengeRequest):
-    """Generates a broken code scenario."""
     return generate_challenge(request.topic, request.difficulty)
 
 @app.post("/api/challenge/verify")
 async def verify_challenge(request: VerifySolutionRequest):
-    """
-    Runs the User's Fix + Hidden Test Cases in the Piston Sandbox.
-    """
     try:
-        # 1. Construct the Test Harness
-        # We append the test assertions to the user's code
         full_code = request.user_code + "\n\n# --- HIDDEN TEST HARNESS ---\n"
-        
         for test in request.test_cases:
-            # Simple assertion logic for Python
             full_code += f"print(f'Test: {test['input_val']} -> Expect {test['expected_output']}')\n"
             full_code += f"assert str({test['input_val']}) == '{test['expected_output']}', 'Failed Case: {test['input_val']}'\n"
-        
         full_code += "print('ALL_TESTS_PASSED')"
 
-        # 2. Execute in Sandbox
         output = execute_code(request.language, full_code)
         
-        # 3. Analyze Result
         if "ALL_TESTS_PASSED" in output:
             return {"status": "PASS", "output": output}
         else:
             return {"status": "FAIL", "output": output}
-
     except Exception as e:
         return {"status": "ERROR", "output": str(e)}
+
+# 7. RECRUITER PROXY
+@app.post("/api/recruiter/ask")
+async def ask_digital_twin(request: RecruiterQuery):
+    """
+    External Recruiters hit this to chat with the candidate's 'Verified Memory'.
+    """
+    return query_digital_twin(request.question)
 
 # --- Shared Logic ---
 async def run_interview_turn(message, history, topic, difficulty, session_id):
     session_id = session_id or str(uuid.uuid4())
-    clean_message = sanitize_input(message)
+    clean_message = sanitize_input(message) # PII Redaction happens here
 
     lc_messages = []
     for msg in history:
@@ -193,6 +194,8 @@ async def run_interview_turn(message, history, topic, difficulty, session_id):
     
     ai_response = result["messages"][-1].content
     critique = result.get("shadow_critique", "None")
+    
+    # LOGGING TO SUPABASE
     db_manager.log_interaction(session_id, topic, clean_message, ai_response, critique)
     
     return {
@@ -201,6 +204,20 @@ async def run_interview_turn(message, history, topic, difficulty, session_id):
         "session_id": session_id,
         "user_text_processed": clean_message
     }
+
+# 8. RESUME PARSER
+@app.post("/api/resume/upload")
+async def upload_resume(file: UploadFile = File(...)):
+    try:
+        file_location = f"temp_{file.filename}"
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+        analysis = analyze_resume(file_location)
+        os.remove(file_location)
+        return {"filename": file.filename, "analysis": analysis}
+    except Exception as e:
+        print(f"Resume Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
