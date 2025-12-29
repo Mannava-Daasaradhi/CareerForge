@@ -42,3 +42,23 @@ export const sendChatMessage = async (
   if (!res.ok) throw new Error("Failed to send message");
   return res.json();
 };
+// ... (Keep existing code above)
+
+// 3. Upload Resume
+export interface ResumeAnalysis {
+  filename: string;
+  analysis: string; // The raw string from the AI (JSON-like)
+}
+
+export const uploadResume = async (file: File): Promise<ResumeAnalysis> => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE}/resume/upload`, {
+    method: "POST",
+    body: formData, // No Content-Type header needed (browser sets it automatically for FormData)
+  });
+
+  if (!res.ok) throw new Error("Failed to upload resume");
+  return res.json();
+};
