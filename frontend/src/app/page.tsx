@@ -2,33 +2,42 @@ import React from 'react';
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-black text-white">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <h1 className="text-4xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">
-          CareerForge_
-        </h1>
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          System Status: <span className="text-emerald-400 ml-2">ONLINE</span>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-black text-white p-4">
+      {/* Top Status Bar */}
+      <div className="absolute top-5 left-5 border border-emerald-500/30 bg-emerald-900/10 px-4 py-2 rounded-full">
+        <p className="text-xs font-mono text-emerald-400">
+          SYSTEM STATUS: <span className="animate-pulse">ONLINE</span>
         </p>
       </div>
 
-      <div className="relative flex place-items-center mt-20">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">The Trust-Based Career OS</h2>
-          <p className="max-w-[600px] text-gray-400">
-            Verify your skills. Bypass the resume filters. Prove you can actually build.
-          </p>
-          
-          <div className="mt-8 flex gap-4 justify-center">
-            <button className="px-6 py-3 rounded-md bg-white text-black font-bold hover:bg-gray-200 transition">
-              Launch Terminal
-            </button>
-            <button className="px-6 py-3 rounded-md border border-gray-700 hover:bg-gray-900 transition">
-              Documentation
-            </button>
-          </div>
+      {/* Main Hero Section */}
+      <div className="text-center z-10 max-w-4xl space-y-6">
+        <h1 className="text-6xl md:text-8xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-500 to-emerald-600">
+          CareerForge_
+        </h1>
+        
+        <h2 className="text-2xl md:text-3xl font-light text-gray-300">
+          The Trust-Based Career OS
+        </h2>
+        
+        <p className="mx-auto max-w-[600px] text-gray-400 text-lg leading-relaxed">
+          Stop &quot;Vibecoding&quot;. Start building. <br/>
+          We verify skills via <span className="text-emerald-400">Adversarial Testing</span>.
+        </p>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+          <button className="px-8 py-4 rounded-lg bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition-all hover:scale-105">
+            Launch Terminal
+          </button>
+          <button className="px-8 py-4 rounded-lg border border-gray-700 bg-gray-900/50 hover:bg-gray-800 transition-all">
+            Read The Docs
+          </button>
         </div>
       </div>
+
+      {/* Background Grid Effect (Optional Visual) */}
+      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
     </main>
   );
 }
