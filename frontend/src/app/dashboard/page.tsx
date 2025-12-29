@@ -21,7 +21,6 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadMarketIntel() {
       try {
-        // We default to "Software Engineer" for the dashboard pulse check
         const res = await fetch(`http://localhost:8000/api/career/market-pulse?role=Software%20Engineer`);
         if (res.ok) {
           const data = await res.json();
@@ -57,7 +56,7 @@ export default function DashboardPage() {
       <header className="flex justify-between items-center border-b border-gray-800 pb-6 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tighter text-white">MISSION_CONTROL</h1>
-          <p className="text-xs text-green-500">SYSTEM STATUS: OPTIMAL</p>
+          <p className="text-xs text-green-500">SYSTEM STATUS: AGENTIC MODE ACTIVE</p>
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-500">AGENT ID</p>
@@ -78,7 +77,7 @@ export default function DashboardPage() {
           ) : pulse ? (
             <div className="space-y-6">
               <div>
-                <p className="text-xs text-gray-500">ROLE DEMAND (Soft. Eng)</p>
+                <p className="text-xs text-gray-500">ROLE DEMAND</p>
                 <div className="flex items-end gap-2">
                   <span className="text-4xl font-bold text-white">{pulse.demand_score}</span>
                   <span className="text-sm text-gray-400 mb-1">/ 100</span>
@@ -86,13 +85,13 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <p className="text-xs text-gray-500">SATURATION ALERT</p>
+                <p className="text-xs text-gray-500">MARKET STATUS</p>
                 <p className={`text-lg font-bold ${pulse.saturation_warning ? 'text-red-400' : 'text-green-400'}`}>
-                  {pulse.saturation_warning ? 'HIGH COMPETITION' : 'LOW BARRIER'}
+                  {pulse.saturation_warning ? 'SATURATED' : 'HIGH DEMAND'}
                 </p>
               </div>
 
-              <div className="p-3 bg-blue-900/10 border border-blue-900/30 text-xs text-blue-300">
+              <div className="p-3 bg-blue-900/10 border border-blue-900/30 text-xs text-blue-300 italic">
                 "{pulse.salary_range_insight}"
               </div>
             </div>
@@ -104,39 +103,41 @@ export default function DashboardPage() {
         {/* RIGHT COL: ACTION DECK */}
         <div className="col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          {/* 1. INTERVIEW SIMULATOR (Voice) */}
+          {/* 1. INTERVIEW SIMULATOR */}
           <ActionCard 
             title="SIMULATION_MODE" 
-            desc="Enter the 'Universal Gauntlet'. Voice-enabled technical interview with real-time anxiety analysis."
+            desc="Voice-enabled technical interview with real-time anxiety & burnout analysis."
             link="/interview"
             color="green"
             delay={0.1}
           />
 
-          {/* 2. ROADMAP GENERATOR (Ghost Tech Lead) */}
+          {/* 2. OPPORTUNITY HUNTER (NEW) */}
           <ActionCard 
-            title="PI_ROADMAP" 
-            desc="Generate a 'Ghost Tech Lead' recovery plan based on your skill gaps."
-            link="/roadmap" // We will build this page next
+            title="OPPORTUNITY_HUNTER" 
+            desc="Agentic job search that filters out roles matching your skill gaps."
+            link="/hunter" 
             color="purple"
             delay={0.2}
           />
 
-          {/* 3. RESUME AUDIT (Existing) */}
+          {/* 3. RESUME SUITE (Updated) */}
           <ActionCard 
-            title="RESUME_AIRLOCK" 
-            desc="OCR-hardened resume parser. Check for ATS failures and keyword stuffing."
+            title="RESUME_FORGE" 
+            desc="OCR Analysis + AI Tailoring. Rewrite your resume for specific job descriptions."
             link="/resume"
             color="yellow"
             delay={0.3}
           />
 
-          {/* 4. AUDIT LOGS */}
-          <div className="border border-gray-800 bg-black p-6 flex items-center justify-center opacity-50">
-            <p className="text-xs text-gray-500 text-center">
-              HISTORY LOGS<br/>(COMING SOON)
-            </p>
-          </div>
+          {/* 4. PASSPORT CONTROL (NEW) */}
+          <ActionCard 
+            title="SKILL_PASSPORT" 
+            desc="Generate a cryptographically verified proof-of-skill for recruiters."
+            link="/passport"
+            color="blue"
+            delay={0.4}
+          />
 
         </div>
       </div>

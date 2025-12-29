@@ -1,22 +1,21 @@
-from typing import TypedDict, Annotated, List, Union
+from typing import TypedDict, Annotated, List, Union, Optional
 from langchain_core.messages import BaseMessage
 import operator
 
 class InterviewState(TypedDict):
     """
     The Shared Memory of the Interview Graph.
-    
-    Attributes:
-        messages (List[BaseMessage]): The full chat history (User, AI, System).
-                                      'operator.add' means new messages are appended, not overwritten.
-        topic (str): The subject being interviewed (e.g., "React", "System Design").
-        difficulty_level (int): 0-100 score of current question difficulty.
-        shadow_critique (str): The latest critique from the Shadow Auditor node. 
-                               Used by the Lead Interviewer to adjust questioning.
-        step_count (int): Safety counter to prevent infinite graph loops.
+    Now includes 'Burnout Tracking'.
     """
     messages: Annotated[List[BaseMessage], operator.add]
     topic: str
     difficulty_level: int
-    shadow_critique: str
+    
+    # Analysis Artifacts
+    shadow_critique: Optional[str]
+    code_output: Optional[str] # Output from the Sandbox
+    
+    # Safety & Logic Counters
     step_count: int
+    consecutive_failures: int # Tracks how many times code/logic failed in a row
+    is_burnout_risk: bool # Flag if we should switch to 'Therapist Mode'

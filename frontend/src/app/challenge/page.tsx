@@ -1,43 +1,33 @@
 "use client";
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // --- TYPES ---
-interface TestCase {
-  input_val: string;
-  expected_output: string;
-}
-
-interface CursedChallenge {
+interface Challenge {
   title: string;
-  scenario: string;
-  broken_code: string;
-  constraint: string;
-  test_cases: TestCase[];
-  solution_summary: string;
-}
-
-interface VerifyResult {
-  status: 'PASS' | 'FAIL' | 'ERROR';
-  output: string;
+  description: string;
+  template_code: string;
+  difficulty: number;
+  test_cases: any[]; // Hidden from UI in a real app, but we store here to send back for verification
 }
 
 export default function ChallengePage() {
-  const [topic, setTopic] = useState("Python Concurrency");
+  const [topic, setTopic] = useState("Python Memory Management");
   const [difficulty, setDifficulty] = useState(70);
-  const [challenge, setChallenge] = useState<CursedChallenge | null>(null);
-  const [userCode, setUserCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
+  
+  // Editor State
+  const [userCode, setUserCode] = useState("");
   const [verifying, setVerifying] = useState(false);
-  const [result, setResult] = useState<VerifyResult | null>(null);
+  const [result, setResult] = useState<any>(null);
 
-  // 1. GENERATE THE CURSE
-  const spawnChallenge = async () => {
+  // 1. GENERATE CHALLENGE
+  const handleGenerate = async () => {
     setLoading(true);
     setChallenge(null);
     setResult(null);
-    
     try {
       const res = await fetch('http://localhost:8000/api/challenge/new', {
         method: 'POST',
@@ -46,34 +36,32 @@ export default function ChallengePage() {
       });
       const data = await res.json();
       setChallenge(data);
-      setUserCode(data.broken_code); // Pre-fill with the buggy code
+      setUserCode(data.template_code);
     } catch (e) {
-      alert("Failed to summon the challenge.");
+      alert("Generator Failed. Backend Offline?");
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. ATTEMPT THE FIX
-  const verifySolution = async () => {
+  // 2. VERIFY SOLUTION
+  const handleVerify = async () => {
     if (!challenge) return;
     setVerifying(true);
-    setResult(null);
-
     try {
       const res = await fetch('http://localhost:8000/api/challenge/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_code: userCode,
-          language: "python", // Hardcoded for now, can be dynamic
+          language: "python", // Defaulting to Python for this demo
           test_cases: challenge.test_cases
         })
       });
       const data = await res.json();
       setResult(data);
     } catch (e) {
-      alert("Verification system offline.");
+      alert("Verification Failed.");
     } finally {
       setVerifying(false);
     }
@@ -81,93 +69,94 @@ export default function ChallengePage() {
 
   return (
     <div className="min-h-screen bg-black text-gray-200 font-mono p-4 md:p-8 flex flex-col items-center">
-      
-      {/* HEADER */}
-      <div className="w-full max-w-5xl mb-8 flex justify-between items-end border-b border-red-900 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-red-500 tracking-tighter">THE_GAUNTLET</h1>
-          <p className="text-xs text-red-700">LIVE FIRE EXERCISE // FAILURE IS EXPECTED</p>
-        </div>
-        <div className="text-right space-y-1">
-          <input 
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            className="bg-red-900/10 border border-red-900 text-red-300 text-xs p-1 outline-none text-right"
-            placeholder="Topic (e.g. Async)"
-          />
-        </div>
-      </div>
+      <div className="w-full max-w-5xl">
+        <h1 className="text-3xl font-bold text-red-600 mb-2">CURSED_ARENA</h1>
+        <p className="text-xs text-red-800 mb-8">LIVE EXECUTION ENVIRONMENT</p>
 
-      {!challenge && (
-        <div className="text-center mt-20">
-          <p className="text-red-800 mb-4">SELECT_PROTOCOL</p>
-          <button 
-            onClick={spawnChallenge}
-            disabled={loading}
-            className="bg-red-900/20 border border-red-600 text-red-500 px-8 py-4 font-bold text-xl hover:bg-red-600 hover:text-black transition-all disabled:opacity-50"
-          >
-            {loading ? 'SUMMONING...' : 'INITIATE_CHALLENGE'}
-          </button>
+        {/* CONTROLS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 bg-gray-900/20 p-6 border border-red-900/30">
+          <div>
+            <label className="text-xs text-gray-500 block mb-2">TOPIC</label>
+            <input 
+              value={topic} onChange={e => setTopic(e.target.value)}
+              className="w-full bg-black border border-gray-700 p-2 text-white outline-none focus:border-red-500"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-2">DIFFICULTY (0-100)</label>
+            <input 
+              type="number"
+              value={difficulty} onChange={e => setDifficulty(Number(e.target.value))}
+              className="w-full bg-black border border-gray-700 p-2 text-white outline-none focus:border-red-500"
+            />
+          </div>
+          <div className="flex items-end">
+            <button 
+              onClick={handleGenerate}
+              disabled={loading}
+              className="w-full bg-red-900/20 border border-red-600 text-red-500 py-2 font-bold hover:bg-red-600 hover:text-white transition-all disabled:opacity-50"
+            >
+              {loading ? 'SPAWNING...' : 'SPAWN CHALLENGE'}
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* THE ARENA */}
-      {challenge && (
-        <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* LEFT: SCENARIO */}
-          <div className="space-y-6">
-            <div className="border border-red-900/50 p-6 bg-red-900/5">
-              <h2 className="text-xl font-bold text-red-400 mb-2">{challenge.title}</h2>
-              <p className="text-sm text-gray-400 leading-relaxed mb-4">{challenge.scenario}</p>
+        {/* WORKSPACE */}
+        {challenge && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* LEFT: INSTRUCTIONS */}
+            <div className="border border-gray-800 p-6 bg-gray-900/5">
+              <h2 className="text-xl font-bold text-white mb-4">{challenge.title}</h2>
+              <div className="prose prose-invert prose-sm mb-6">
+                <p>{challenge.description}</p>
+              </div>
               
-              <div className="p-3 bg-black border border-red-900/30">
-                <p className="text-xs text-red-600 uppercase mb-1">Constraint</p>
-                <p className="text-sm text-red-300">{challenge.constraint}</p>
+              <div className="mt-8">
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Test Cases (Hidden)</h3>
+                <div className="flex gap-2">
+                  {challenge.test_cases.map((_: any, i: number) => (
+                    <div key={i} className="w-3 h-3 rounded-full bg-gray-700" title="Hidden Case" />
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* RESULTS PANEL */}
-            <AnimatePresence>
+            {/* RIGHT: CODE EDITOR */}
+            <div className="flex flex-col gap-4">
+              <textarea
+                value={userCode}
+                onChange={e => setUserCode(e.target.value)}
+                className="flex-1 h-96 bg-gray-900 font-mono text-sm p-4 border border-gray-700 outline-none focus:border-red-500 text-gray-300 resize-none"
+                spellCheck={false}
+              />
+              
+              <button 
+                onClick={handleVerify}
+                disabled={verifying}
+                className="bg-white text-black font-bold py-3 hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                {verifying ? 'COMPILING & RUNNING...' : 'EXECUTE SOLUTION'}
+              </button>
+
+              {/* CONSOLE OUTPUT */}
               {result && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`p-6 border-l-4 ${result.status === 'PASS' ? 'border-green-500 bg-green-900/10' : 'border-red-500 bg-red-900/10'}`}
-                >
-                  <h3 className={`font-bold text-lg mb-2 ${result.status === 'PASS' ? 'text-green-400' : 'text-red-400'}`}>
-                    {result.status === 'PASS' ? '>>> SYSTEM PASS' : '>>> CRITICAL FAILURE'}
-                  </h3>
-                  <pre className="text-xs text-gray-400 overflow-x-auto whitespace-pre-wrap">
+                <div className={`p-4 border ${result.status === 'PASS' ? 'border-green-500 bg-green-900/10' : 'border-red-500 bg-red-900/10'}`}>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`font-bold ${result.status === 'PASS' ? 'text-green-500' : 'text-red-500'}`}>
+                      {result.status}
+                    </span>
+                  </div>
+                  <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono">
                     {result.output}
                   </pre>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
-          </div>
-
-          {/* RIGHT: EDITOR */}
-          <div className="flex flex-col h-[600px]">
-            <div className="bg-gray-900 border-t border-l border-r border-gray-700 p-2 flex justify-between items-center">
-              <span className="text-xs text-gray-500">main.py</span>
-              <button 
-                onClick={verifySolution}
-                disabled={verifying}
-                className={`text-xs px-3 py-1 font-bold ${verifying ? 'text-gray-500' : 'bg-red-600 text-black hover:bg-white'}`}
-              >
-                {verifying ? 'RUNNING...' : 'EXECUTE_FIX'}
-              </button>
             </div>
-            <textarea 
-              value={userCode}
-              onChange={(e) => setUserCode(e.target.value)}
-              className="flex-1 w-full bg-black border border-gray-700 p-4 font-mono text-sm text-gray-300 outline-none resize-none focus:border-red-500 transition-colors"
-              spellCheck={false}
-            />
-          </div>
 
-        </div>
-      )}
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 }

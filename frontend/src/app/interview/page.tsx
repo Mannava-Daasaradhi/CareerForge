@@ -30,7 +30,14 @@ export default function InterviewPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      
+      // FIX: Explicitly set MIME type for better compatibility with Backend Whisper
+      // This ensures we send a valid WebM/Opus file that Groq can read.
+      const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+        ? { mimeType: 'audio/webm;codecs=opus' } 
+        : {};
+        
+      const mediaRecorder = new MediaRecorder(stream, options);
       
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -42,11 +49,14 @@ export default function InterviewPage() {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); // Chrome/Firefox standard
+        // Create Blob with the same type we requested
+        const mimeType = options.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        
         const url = URL.createObjectURL(audioBlob);
         setAudioURL(url);
         
-        // Auto-send after stop (Optional, but smoother)
+        // Auto-send after stop
         handleSubmission(audioBlob);
       };
 
@@ -59,7 +69,7 @@ export default function InterviewPage() {
 
   // 2. STOP RECORDING
   const stopRecording = () => {
-    if (mediaRecorderRef.current) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
       setRecording(false);
     }
@@ -104,6 +114,7 @@ export default function InterviewPage() {
       ]);
 
     } catch (e) {
+      console.error(e);
       alert("Error processing voice. Check backend console.");
     } finally {
       setProcessing(false);
@@ -162,9 +173,12 @@ export default function InterviewPage() {
         <button
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
+          // Touch events for mobile support
+          onTouchStart={(e) => { e.preventDefault(); startRecording(); }}
+          onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
           disabled={processing}
           className={`
-            w-20 h-20 rounded-full border-4 flex items-center justify-center transition-all
+            w-20 h-20 rounded-full border-4 flex items-center justify-center transition-all select-none
             ${recording 
               ? 'border-red-500 bg-red-500/20 scale-110 shadow-[0_0_30px_rgba(255,0,0,0.5)]' 
               : 'border-gray-700 bg-gray-900 hover:border-blue-500 hover:bg-blue-900/20'}
@@ -180,7 +194,7 @@ export default function InterviewPage() {
       </div>
 
       <div className="fixed bottom-2 text-[10px] text-gray-600">
-        HOLD SPACEBAR OR CLICK TO RECORD
+        HOLD CLICK TO RECORD
       </div>
     </div>
   );

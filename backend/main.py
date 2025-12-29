@@ -25,9 +25,14 @@ from challenge_generator import generate_challenge
 from code_sandbox import execute_code 
 from recruiter_proxy import query_digital_twin
 
+# --- NEW IMPORTS (PHASES 1-3) ---
+from job_fetcher import hunt_opportunities
+from resume_tailor import tailor_resume
+from skill_passport import get_skill_passport
+
 load_dotenv()
 
-app = FastAPI(title="CareerForge PI Engine", version="3.1.0-Platinum")
+app = FastAPI(title="CareerForge PI Engine", version="4.0.0-Agentic")
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,7 +78,13 @@ class VerifySolutionRequest(BaseModel):
 class RecruiterQuery(BaseModel):
     question: str
 
-# --- Helper Functions (FIXED) ---
+# NEW: Job Hunt Model
+class JobHuntRequest(BaseModel):
+    target_role: str
+    location: str = "Remote"
+    current_skill_gaps: List[str] = []
+
+# --- Helper Functions ---
 def sanitize_input(text: str) -> str:
     """
     Redacts PII (Email/Phone) from text if security is active.
@@ -88,7 +99,11 @@ def sanitize_input(text: str) -> str:
 
 @app.get("/")
 async def health_check():
-    return {"status": "active", "version": "3.1.0", "modules": ["Voice", "Roadmap", "Sniper", "Cursed-Sandbox", "Recruiter-Proxy"]}
+    return {
+        "status": "active", 
+        "version": "4.0.0", 
+        "modules": ["Voice", "Roadmap", "Sniper", "Cursed-Sandbox", "Recruiter-Proxy", "Job-Hunter", "Resume-Tailor", "Skill-Passport"]
+    }
 
 # 1. AUDIT
 @app.get("/api/audit/{username}")
@@ -142,6 +157,11 @@ async def generate_roadmap(request: RoadmapRequest):
 async def market_pulse(role: str, location: str = "Remote"):
     return analyze_market_demand(role, location)
 
+# 5.5 OPPORTUNITY HUNTER (NEW)
+@app.post("/api/career/hunt")
+async def find_jobs(request: JobHuntRequest):
+    return hunt_opportunities(request.target_role, request.current_skill_gaps, request.location)
+
 # 6. CURSED CHALLENGE GENERATOR
 @app.post("/api/challenge/new")
 async def create_challenge(request: ChallengeRequest):
@@ -168,15 +188,54 @@ async def verify_challenge(request: VerifySolutionRequest):
 # 7. RECRUITER PROXY
 @app.post("/api/recruiter/ask")
 async def ask_digital_twin(request: RecruiterQuery):
-    """
-    External Recruiters hit this to chat with the candidate's 'Verified Memory'.
-    """
     return query_digital_twin(request.question)
+
+# 8. RESUME PARSER
+@app.post("/api/resume/upload")
+async def upload_resume(file: UploadFile = File(...)):
+    try:
+        file_location = f"temp_{file.filename}"
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+        analysis = analyze_resume(file_location)
+        if os.path.exists(file_location): os.remove(file_location)
+        return {"filename": file.filename, "analysis": analysis}
+    except Exception as e:
+        print(f"Resume Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 9. RESUME TAILOR (NEW)
+@app.post("/api/resume/tailor")
+async def tailor_resume_endpoint(
+    file: UploadFile = File(...),
+    job_description: str = Form(...)
+):
+    try:
+        file_location = f"temp_tailor_{file.filename}"
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+        
+        result = tailor_resume(file_location, job_description)
+        
+        if os.path.exists(file_location): os.remove(file_location)
+        return result
+    except Exception as e:
+        print(f"Tailor Endpoint Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 10. VERIFIED PASSPORT (NEW)
+@app.get("/api/passport/{username}")
+async def get_passport(username: str):
+    """
+    Public URL for Recruiters.
+    Returns a cryptographically signed summary of the candidate's skills.
+    """
+    return get_skill_passport(username)
 
 # --- Shared Logic ---
 async def run_interview_turn(message, history, topic, difficulty, session_id):
     session_id = session_id or str(uuid.uuid4())
-    clean_message = sanitize_input(message) # PII Redaction happens here
+    clean_message = sanitize_input(message) # PII Redaction
 
     lc_messages = []
     for msg in history:
@@ -184,12 +243,16 @@ async def run_interview_turn(message, history, topic, difficulty, session_id):
         else: lc_messages.append(AIMessage(content=msg["content"]))
     lc_messages.append(HumanMessage(content=clean_message))
 
+    # UPDATED: Invoke Graph with new 'Burnout Guard' state fields
     result = app_graph.invoke({
         "messages": lc_messages,
         "topic": topic,
         "difficulty_level": difficulty,
         "shadow_critique": "",
-        "step_count": 0
+        "code_output": "",         # <--- NEW: For Cyclic Logic
+        "step_count": 0,
+        "consecutive_failures": 0, # <--- NEW: Burnout Tracking
+        "is_burnout_risk": False   # <--- NEW: Intervention Flag
     })
     
     ai_response = result["messages"][-1].content
@@ -204,20 +267,6 @@ async def run_interview_turn(message, history, topic, difficulty, session_id):
         "session_id": session_id,
         "user_text_processed": clean_message
     }
-
-# 8. RESUME PARSER
-@app.post("/api/resume/upload")
-async def upload_resume(file: UploadFile = File(...)):
-    try:
-        file_location = f"temp_{file.filename}"
-        with open(file_location, "wb+") as file_object:
-            shutil.copyfileobj(file.file, file_object)
-        analysis = analyze_resume(file_location)
-        os.remove(file_location)
-        return {"filename": file.filename, "analysis": analysis}
-    except Exception as e:
-        print(f"Resume Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
