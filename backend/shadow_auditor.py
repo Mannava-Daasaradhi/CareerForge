@@ -11,7 +11,7 @@ from agent_state import InterviewState
 # We wrap this in a try/except block later to handle missing keys gracefully
 try:
     llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.0-flash",
         google_api_key=os.getenv("GOOGLE_API_KEY"),
         temperature=0.0
     )
