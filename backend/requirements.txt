@@ -1,0 +1,27 @@
+# Core Logic & Orchestration
+langgraph
+langchain
+langchain-groq
+langchain-google-genai
+
+# API & Server
+fastapi
+uvicorn
+python-dotenv
+requests
+
+# Database
+supabase
+
+# Security & PII Redaction
+presidio-analyzer
+presidio-anonymizer
+
+# Document Processing (The "Airlock")
+pdf2image
+pytesseract
+pymupdf
+
+# Utilities
+numpy
+pandas
