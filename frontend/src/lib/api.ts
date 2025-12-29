@@ -7,6 +7,13 @@ export interface Message {
   content: string;
 }
 
+export interface ChatResponse {
+  reply: string;
+  critique: string;
+  session_id: string;
+  sanitized_message: string;
+}
+
 export interface AuditResult {
   username: string;
   trust_score: number;
@@ -27,7 +34,7 @@ export const sendChatMessage = async (
   message: string, 
   history: Message[], 
   topic: string = "General Engineering"
-) => {
+): Promise<ChatResponse> => {
   const res = await fetch(`${API_BASE}/interview/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -35,19 +42,18 @@ export const sendChatMessage = async (
       message,
       history,
       topic,
-      difficulty: 75 // Default starting difficulty
+      difficulty: 50 // Default
     }),
   });
   
   if (!res.ok) throw new Error("Failed to send message");
   return res.json();
 };
-// ... (Keep existing code above)
 
 // 3. Upload Resume
 export interface ResumeAnalysis {
   filename: string;
-  analysis: string; // The raw string from the AI (JSON-like)
+  analysis: string; 
 }
 
 export const uploadResume = async (file: File): Promise<ResumeAnalysis> => {
@@ -56,7 +62,7 @@ export const uploadResume = async (file: File): Promise<ResumeAnalysis> => {
 
   const res = await fetch(`${API_BASE}/resume/upload`, {
     method: "POST",
-    body: formData, // No Content-Type header needed (browser sets it automatically for FormData)
+    body: formData,
   });
 
   if (!res.ok) throw new Error("Failed to upload resume");

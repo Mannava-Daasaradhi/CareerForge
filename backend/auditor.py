@@ -1,31 +1,88 @@
 import requests
-from datetime import datetime, timedelta
+import base64
+from datetime import datetime
 import os
 
 class GitHubAuditor:
     def __init__(self):
         self.base_url = "https://api.github.com"
-        # Optional: Use token if available to avoid rate limits (60 requests/hr vs 5000)
+        # Optional: Use token if available to avoid rate limits
         self.token = os.getenv("GITHUB_TOKEN")
         self.headers = {"Authorization": f"token {self.token}"} if self.token else {}
 
-    def get_user_data(self, username: str):
-        """Fetches basic user profile data (Account age, public repos)."""
-        url = f"{self.base_url}/users/{username}"
-        response = requests.get(url, headers=self.headers)
-        
-        if response.status_code != 200:
+    def _safe_get(self, url: str):
+        """Helper to handle network errors gracefully."""
+        try:
+            response = requests.get(url, headers=self.headers, timeout=5)
+            if response.status_code == 200:
+                return response.json()
             return None
-        return response.json()
+        except Exception as e:
+            print(f"GitHub API Error ({url}): {e}")
+            return None
+
+    def get_user_data(self, username: str):
+        return self._safe_get(f"{self.base_url}/users/{username}")
 
     def get_recent_activity(self, username: str):
-        """Fetches the last 30 public events (Pushes, PRs)."""
-        url = f"{self.base_url}/users/{username}/events/public"
-        response = requests.get(url, headers=self.headers)
+        data = self._safe_get(f"{self.base_url}/users/{username}/events/public")
+        return data if data else []
+
+    def get_file_content(self, url: str):
+        """Fetches and decodes Base64 file content from GitHub."""
+        data = self._safe_get(url)
+        if data and "content" in data and data.get("encoding") == "base64":
+            try:
+                return base64.b64decode(data["content"]).decode("utf-8", errors="ignore")
+            except Exception:
+                return "[Error decoding file content]"
+        return "[No content or not base64 encoded]"
+
+    def fetch_top_repo_context(self, username: str):
+        """
+        New Feature: Deep Context Audit
+        1. Finds the user's most popular repository (by stars).
+        2. Fetches the README and up to 2 code files.
+        """
+        print(f"Fetching Deep Context for {username}...")
+        repos = self._safe_get(f"{self.base_url}/users/{username}/repos?sort=updated&per_page=5")
         
-        if response.status_code != 200:
-            return []
-        return response.json()
+        if not repos:
+            return {"error": "No public repositories found."}
+
+        # Pick the repo with the most stars
+        top_repo = max(repos, key=lambda x: x['stargazers_count'])
+        repo_name = top_repo['name']
+        
+        # Get file list (root directory)
+        contents_url = top_repo['contents_url'].replace("{+path}", "")
+        files = self._safe_get(contents_url)
+        
+        context_data = {
+            "repo_name": repo_name,
+            "description": top_repo.get("description", "No description"),
+            "stars": top_repo['stargazers_count'],
+            "files": {}
+        }
+
+        if not files:
+            return context_data
+
+        # Strategy: Get README + First 2 Code Files (py, js, ts, go, rs)
+        target_extensions = ('.py', '.js', '.ts', '.go', '.rs', '.java', '.cpp')
+        code_file_count = 0
+        
+        for file in files:
+            if file['name'].lower() == "readme.md":
+                context_data["files"]["README.md"] = self.get_file_content(file['url'])
+            
+            elif file['name'].endswith(target_extensions) and code_file_count < 2:
+                content = self.get_file_content(file['url'])
+                # Truncate large files to save tokens
+                context_data["files"][file['name']] = content[:2000] + ("..." if len(content)>2000 else "")
+                code_file_count += 1
+
+        return context_data
 
     def calculate_trust_score(self, username: str):
         """
@@ -36,29 +93,21 @@ class GitHubAuditor:
         """
         user = self.get_user_data(username)
         if not user:
-            return {"error": "User not found", "trust_score": 0}
+            return {"error": "User not found or Auditor Offline", "trust_score": 0}
 
-        # 1. Calculate Account Age (Years)
+        # 1. Calculate Account Age
         created_at = datetime.strptime(user['created_at'], "%Y-%m-%dT%H:%M:%SZ")
-        account_age_days = (datetime.now() - created_at).days
-        years_active = account_age_days / 365
+        years_active = (datetime.now() - created_at).days / 365
 
         # 2. Analyze Recent Events
         events = self.get_recent_activity(username)
         push_count = sum(1 for e in events if e['type'] == 'PushEvent')
         
-        # 3. The Scoring Algorithm (0 to 100)
+        # 3. Scoring
         score = 0
-        
-        # Base Score from Age (Max 40 points for 4+ years)
         score += min(40, years_active * 10)
-        
-        # Activity Score (Max 40 points for 10+ recent pushes)
         score += min(40, push_count * 4)
-        
-        # Repo Bonus (Max 20 points for 20+ repos)
-        repo_count = user.get('public_repos', 0)
-        score += min(20, repo_count)
+        score += min(20, user.get('public_repos', 0))
 
         return {
             "username": username,
@@ -68,8 +117,7 @@ class GitHubAuditor:
             "verdict": "High Trust" if score > 70 else "Low Trust - Sandbox Mode Activated"
         }
 
-# Simple test block to run it directly
 if __name__ == "__main__":
     auditor = GitHubAuditor()
-    # Test with a known user (e.g., the creator of Linux, torvalds)
-    print(auditor.calculate_trust_score("torvalds"))
+    # Test Deep Context
+    print(auditor.fetch_top_repo_context("torvalds"))

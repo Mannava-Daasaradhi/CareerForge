@@ -37,6 +37,10 @@ def shadow_auditor_node(state: InterviewState):
         f"Output a concise critique (max 2 sentences) for the Lead Interviewer."
     )
 
-    response = llm.invoke([SystemMessage(content=system_prompt)])
-    
-    return {"shadow_critique": response.content}
+    try:
+        response = llm.invoke([SystemMessage(content=system_prompt)])
+        return {"shadow_critique": response.content}
+    except Exception as e:
+        print(f"Shadow Auditor Offline/Error: {e}")
+        # Return "None" so the Lead Interviewer ignores the missing critique
+        return {"shadow_critique": "None"}
