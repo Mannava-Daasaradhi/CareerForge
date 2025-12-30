@@ -37,3 +37,23 @@ create policy "Enable insert access for all users" on interview_logs for insert 
 
 create policy "Enable read access for all users" on challenge_attempts for select using (true);
 create policy "Enable insert access for all users" on challenge_attempts for insert with check (true);
+
+-- 5. Create 'applications' Table
+-- This tracks the Kanban board state (Wishlist -> Applied -> Interview -> etc.)
+-- 5. Create 'applications' Table
+create table if not exists applications (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid default auth.uid(), 
+  role_title text not null,
+  company_name text not null,
+  status text not null default 'Wishlist',
+  salary_range text,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 6. Enable Row Level Security (RLS)
+alter table applications enable row level security;
+
+-- FIX: Use 'FOR ALL' instead of listing operations
+create policy "Public access" on applications for all using (true) with check (true);

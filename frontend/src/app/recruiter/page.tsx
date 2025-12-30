@@ -1,106 +1,103 @@
-"use client";
+// frontend/src/app/recruiter/page.tsx
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+"use client";
+import { useState } from 'react';
+import Navbar from '@/components/Navbar';
 
 export default function RecruiterPage() {
-  const [query, setQuery] = useState("");
+  const [question, setQuestion] = useState('');
+  const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<{q: string, a: string}[]>([]);
+  // In a real app, this would come from the URL (e.g., /recruiter/mannava)
+  // For demo, we hardcode 'mannava' or allow input
+  const [targetUser, setTargetUser] = useState('mannava'); 
 
-  const handleAsk = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query) return;
-
+  const handleAsk = async () => {
+    if (!question) return;
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/recruiter/ask', {
+      const res = await fetch('http://127.0.0.1:8000/api/recruiter/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: query })
+        body: JSON.stringify({ username: targetUser, question }),
       });
-      
       const data = await res.json();
-      
-      setHistory(prev => [...prev, { q: query, a: data.reply }]);
-      setQuery("");
+      setResponse(data.reply);
     } catch (err) {
-      alert("Digital Twin Offline.");
-    } finally {
-      setLoading(false);
+      setResponse("Error connecting to Digital Twin.");
     }
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-sans p-4 md:p-8 flex justify-center">
-      <div className="w-full max-w-2xl">
-        {/* HEADER - Clean, "Recruiter Friendly" UI */}
-        <div className="mb-12 text-center">
-          <div className="w-20 h-20 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">
-            🤖
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Candidate Digital Twin</h1>
-          <p className="text-gray-500">Ask questions about the candidate's verified technical history.</p>
+    <div className="min-h-screen bg-gray-950 text-white font-mono">
+      <Navbar />
+      <div className="max-w-4xl mx-auto p-8 mt-10">
+        
+        {/* Header Section */}
+        <div className="border-b border-gray-800 pb-6 mb-8">
+          <h1 className="text-3xl font-bold text-green-400">
+            Digital Twin Interface <span className="text-sm text-gray-500">v4.0</span>
+          </h1>
+          <p className="text-gray-400 mt-2">
+            You are speaking to the AI agent representing <span className="text-white font-bold">{targetUser}</span>.
+            It answers based on <span className="italic">verified cryptographic proofs</span>, not just claims.
+          </p>
         </div>
 
-        {/* CHAT DISPLAY */}
-        <div className="space-y-8 mb-12">
-          {history.length === 0 && (
-            <div className="text-center text-gray-400 italic text-sm">
-              Try asking: "How did they perform on System Design?" or "What are their Python weaknesses?"
-            </div>
-          )}
+        {/* Chat Interface */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
-          {history.map((turn, i) => (
-            <div key={i} className="space-y-4">
-              {/* Recruiter Question */}
-              <div className="flex justify-end">
-                 <div className="bg-blue-600 text-white px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-sm">
-                   {turn.q}
-                 </div>
-              </div>
+          {/* Main Chat */}
+          <div className="md:col-span-2 space-y-4">
+             <div className="bg-gray-900 border border-gray-800 p-6 rounded-lg min-h-[300px]">
+                {response ? (
+                  <p className="whitespace-pre-wrap leading-relaxed">{response}</p>
+                ) : (
+                  <p className="text-gray-600 italic">Waiting for recruiter inquiry...</p>
+                )}
+             </div>
 
-              {/* Twin Answer */}
-              <motion.div 
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex justify-start"
-              >
-                 <div className="bg-gray-100 text-gray-800 px-5 py-3 rounded-2xl rounded-tl-sm max-w-[90%] shadow-sm border border-gray-200">
-                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{turn.a}</p>
-                 </div>
-              </motion.div>
-            </div>
-          ))}
+             <div className="flex gap-2">
+               <input 
+                 type="text" 
+                 value={question}
+                 onChange={(e) => setQuestion(e.target.value)}
+                 placeholder="e.g., Does he truly understand System Design?"
+                 className="flex-1 bg-gray-900 border border-gray-700 p-3 rounded focus:outline-none focus:border-green-500"
+               />
+               <button 
+                 onClick={handleAsk}
+                 disabled={loading}
+                 className="bg-green-600 hover:bg-green-500 px-6 py-3 rounded font-bold disabled:opacity-50"
+               >
+                 {loading ? "Thinking..." : "ASK TWIN"}
+               </button>
+             </div>
+          </div>
 
-          {loading && (
-             <div className="flex justify-start">
-               <div className="bg-gray-50 px-4 py-2 rounded-full text-xs text-gray-400 animate-pulse">
-                 Consulting Memory Banks...
+          {/* Side Panel: Suggested Questions */}
+          <div className="space-y-4">
+             <div className="bg-gray-900 p-4 rounded border border-gray-800">
+               <h3 className="text-gray-400 text-sm font-bold uppercase mb-3">Verification Data</h3>
+               <div className="space-y-2 text-sm text-gray-500">
+                 <p>• GitHub Trust Score: <span className="text-green-400">Locked</span></p>
+                 <p>• Skill Passport: <span className="text-green-400">Verified</span></p>
+                 <p>• Identity: <span className="text-green-400">Confirmed</span></p>
                </div>
              </div>
-          )}
-        </div>
-
-        {/* INPUT */}
-        <form onSubmit={handleAsk} className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4">
-          <div className="relative shadow-xl">
-            <input 
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Ask about the candidate..."
-              className="w-full p-4 rounded-full border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none pr-16"
-            />
-            <button 
-              type="submit"
-              disabled={loading || !query}
-              className="absolute right-2 top-2 bg-black text-white p-2 rounded-full w-10 h-10 hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              &uarr;
-            </button>
+             
+             <div className="bg-gray-900 p-4 rounded border border-gray-800">
+               <h3 className="text-gray-400 text-sm font-bold uppercase mb-3">Try Asking:</h3>
+               <ul className="space-y-2 text-sm text-blue-400 cursor-pointer">
+                 <li onClick={() => setQuestion("What are your verified backend skills?")}>"What are your verified skills?"</li>
+                 <li onClick={() => setQuestion("Tell me about a time you failed a challenge.")}>"Tell me about a failure."</li>
+                 <li onClick={() => setQuestion("Why should I hire you over a Senior Dev?")}>"Why hire you?"</li>
+               </ul>
+             </div>
           </div>
-        </form>
 
+        </div>
       </div>
     </div>
   );
