@@ -1,246 +1,244 @@
-// frontend/src/app/hunter/page.tsx
 "use client";
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { huntJobs, getMarketDemand, JobHuntReport } from '@/lib/api';
-import Navbar from '@/components/Navbar';
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Navbar from "@/components/Navbar";
+
+// --- TYPES ---
+interface JobOpportunity {
+  id: string;
+  role_title: string;
+  company: string;
+  location: string;
+  match_score: number;
+  salary_range: string;
+  why_good_fit: string;
+  cautionary_warning: string | null;
+  link: string;
+}
 
 export default function HunterPage() {
-  // Tabs
-  const [activeTab, setActiveTab] = useState<'hunt' | 'market'>('hunt');
-
-  // Shared State
-  const [role, setRole] = useState("Full Stack Engineer");
-  const [location, setLocation] = useState("Remote");
+  // Search State
+  const [criteria, setCriteria] = useState({
+    role: "Full Stack Engineer",
+    location: "Remote",
+    gaps: "" // CSV string for simplicity in UI
+  });
+  
+  const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Hunter State
-  const [gaps, setGaps] = useState(""); 
-  const [huntReport, setHuntReport] = useState<JobHuntReport | null>(null);
-
-  // Market State
-  const [marketData, setMarketData] = useState<any>(null);
+  const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
 
   // --- ACTIONS ---
 
-  const handleHunt = async () => {
+  const huntJobs = async () => {
     setLoading(true);
+    setJobs([]); // Clear previous
+
     try {
-      const gapList = gaps.split(',').map(s => s.trim()).filter(s => s.length > 0);
-      const data = await huntJobs(role, location, gapList);
-      setHuntReport(data);
+      // Convert comma-separated gaps string to array
+      const gapList = criteria.gaps.split(",").map(s => s.trim()).filter(Boolean);
+
+      const res = await fetch("http://localhost:8000/api/career/hunt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_role: criteria.role,
+          location: criteria.location,
+          current_skill_gaps: gapList
+        })
+      });
+
+      const data = await res.json();
+      
+      // Backend returns { opportunities: [...] }
+      // We map it to ensure IDs exist (mocking ID if missing from scraper)
+      const mappedJobs = (data.opportunities || []).map((job: any, index: number) => ({
+        ...job,
+        id: job.id || `job-${index}-${Date.now()}`
+      }));
+      
+      setJobs(mappedJobs);
+
     } catch (e) {
-      alert("Hunter failed. Ensure backend is running.");
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMarketCheck = async () => {
-    setLoading(true);
+  const trackJob = async (job: JobOpportunity) => {
+    // Optimistic UI update
+    const newSet = new Set(trackedIds);
+    newSet.add(job.id);
+    setTrackedIds(newSet);
+
     try {
-      const data = await getMarketDemand(role, location);
-      setMarketData(data);
+        await fetch("http://localhost:8000/api/kanban/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                role_title: job.role_title,
+                company_name: job.company,
+                status: "Wishlist",
+                salary_range: job.salary_range || "Unknown",
+                notes: `Match Score: ${job.match_score}%\n\nWhy: ${job.why_good_fit}\n\nWarning: ${job.cautionary_warning || "None"}`
+            })
+        });
     } catch (e) {
-      alert("Market analysis failed.");
-    } finally {
-      setLoading(false);
+        console.error("Failed to track job", e);
+        // Revert optimistic update? For now, we assume success or user retries.
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-200 font-mono overflow-x-hidden">
+    <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-cyan-500 selection:text-black">
       <Navbar />
-      
-      <div className="max-w-6xl mx-auto p-8">
+
+      <main className="max-w-7xl mx-auto p-6 space-y-8">
         
-        {/* HEADER */}
-        <div className="mb-12 text-center">
-            <h1 className="text-4xl font-bold text-purple-500 mb-2 tracking-tighter">CAREER_RADAR_SYSTEM</h1>
-            <p className="text-xs text-purple-800 tracking-widest">DETECTING OPPORTUNITIES & MARKET SIGNALS</p>
-        </div>
-
-        {/* TABS */}
-        <div className="flex justify-center mb-12 border-b border-gray-800">
-            <button 
-                onClick={() => setActiveTab('hunt')}
-                className={`px-8 py-4 text-sm font-bold transition-all ${activeTab === 'hunt' ? 'text-purple-400 border-b-2 border-purple-500 bg-purple-900/10' : 'text-gray-600 hover:text-white'}`}
-            >
-                01_JOB_HUNTER
-            </button>
-            <button 
-                onClick={() => setActiveTab('market')}
-                className={`px-8 py-4 text-sm font-bold transition-all ${activeTab === 'market' ? 'text-green-400 border-b-2 border-green-500 bg-green-900/10' : 'text-gray-600 hover:text-white'}`}
-            >
-                02_MARKET_PULSE
-            </button>
-        </div>
-
-        {/* --- TAB 1: JOB HUNTER --- */}
-        {activeTab === 'hunt' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                
-                {/* CONTROLS */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-900/30 p-6 border border-gray-800 rounded-lg">
-                    <div>
-                        <label className="text-[10px] text-gray-500 block mb-2 font-bold">TARGET ROLE</label>
-                        <input 
-                            value={role} onChange={(e) => setRole(e.target.value)}
-                            className="w-full bg-black border border-gray-700 p-3 text-white focus:border-purple-500 outline-none rounded"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-[10px] text-gray-500 block mb-2 font-bold">LOCATION</label>
-                        <input 
-                            value={location} onChange={(e) => setLocation(e.target.value)}
-                            className="w-full bg-black border border-gray-700 p-3 text-white focus:border-purple-500 outline-none rounded"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-[10px] text-gray-500 block mb-2 font-bold">KNOWN SKILL GAPS (CSV)</label>
-                        <input 
-                            value={gaps} onChange={(e) => setGaps(e.target.value)}
-                            placeholder="e.g. Redux, AWS"
-                            className="w-full bg-black border border-red-900/30 p-3 text-red-200 focus:border-red-500 outline-none rounded placeholder-gray-800"
-                        />
-                    </div>
+        {/* HEADER & CONTROLS */}
+        <section className="bg-gray-900 border border-gray-800 rounded-3xl p-8 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-cyan-500" />
+            
+            <div className="flex flex-col md:flex-row justify-between items-end gap-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-white mb-2">Job <span className="text-green-400">Hunter</span></h1>
+                    <p className="text-gray-400 text-sm max-w-xl">
+                        This isn't a standard search. Our agent analyzes job descriptions against your profile,
+                        filters out low-relevance roles, and highlights "Best Fit" opportunities.
+                    </p>
                 </div>
-
-                <button 
-                    onClick={handleHunt}
-                    disabled={loading}
-                    className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 font-bold tracking-widest rounded shadow-[0_0_20px_rgba(147,51,234,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {loading ? 'SCANNING NETWORKS...' : 'INITIATE AGENTIC SEARCH'}
-                </button>
-
-                {/* RESULTS */}
-                {huntReport && (
-                    <div className="space-y-6">
-                        {/* STRATEGY */}
-                        <div className="bg-purple-900/10 border-l-4 border-purple-500 p-6 rounded-r">
-                            <h3 className="text-xs font-bold text-purple-400 mb-2">TACTICAL BRIEF</h3>
-                            <p className="text-sm text-gray-300 italic">"{huntReport.strategic_advice}"</p>
-                        </div>
-
-                        {/* LIST */}
-                        <div className="grid gap-4">
-                            {huntReport.opportunities.map((job, idx) => (
-                                <div key={idx} className="bg-gray-900/40 border border-gray-800 p-6 rounded hover:border-purple-500/50 transition-colors group">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h3 className="text-xl font-bold text-white group-hover:text-purple-400 transition-colors">{job.role_title}</h3>
-                                            <p className="text-sm text-gray-500">{job.company}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-2xl font-bold text-white">{job.match_score}<span className="text-sm text-gray-600">%</span></div>
-                                            <div className="text-[10px] text-gray-600 uppercase">Fit Score</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <p className="text-sm text-gray-400 mb-4 leading-relaxed">{job.why_good_fit}</p>
-                                    
-                                    {job.cautionary_warning && (
-                                        <div className="mb-4 bg-red-900/10 border border-red-900/30 p-3 rounded flex gap-3 items-center">
-                                            <span className="text-xl">🛡️</span>
-                                            <p className="text-xs text-red-300">{job.cautionary_warning}</p>
-                                        </div>
-                                    )}
-
-                                    <div className="flex justify-between items-center pt-4 border-t border-gray-800">
-                                        <span className="text-xs text-gray-600 font-mono truncate max-w-xs">{job.apply_link_guess}</span>
-                                        <a href={job.apply_link_guess} target="_blank" className="px-6 py-2 bg-white text-black text-xs font-bold rounded hover:bg-gray-200">
-                                            APPLY
-                                        </a>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <div className="flex-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Target Role</label>
+                        <input 
+                            value={criteria.role}
+                            onChange={e => setCriteria({...criteria, role: e.target.value})}
+                            className="bg-black border border-gray-700 rounded-lg p-3 text-sm text-white w-full focus:border-green-500 outline-none"
+                            placeholder="e.g. Backend Engineer"
+                        />
                     </div>
-                )}
-            </motion.div>
-        )}
-
-        {/* --- TAB 2: MARKET PULSE (NEW) --- */}
-        {activeTab === 'market' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                 
-                 <div className="flex gap-4">
-                    <input 
-                        value={role} onChange={(e) => setRole(e.target.value)}
-                        className="flex-1 bg-black border border-gray-700 p-4 text-white focus:border-green-500 outline-none rounded"
-                        placeholder="Role to Analyze..."
-                    />
-                     <input 
-                        value={location} onChange={(e) => setLocation(e.target.value)}
-                        className="w-1/3 bg-black border border-gray-700 p-4 text-white focus:border-green-500 outline-none rounded"
-                        placeholder="Market Region..."
-                    />
+                    <div className="w-full sm:w-32">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Location</label>
+                        <input 
+                            value={criteria.location}
+                            onChange={e => setCriteria({...criteria, location: e.target.value})}
+                            className="bg-black border border-gray-700 rounded-lg p-3 text-sm text-white w-full focus:border-green-500 outline-none"
+                            placeholder="Remote"
+                        />
+                    </div>
                     <button 
-                        onClick={handleMarketCheck}
+                        onClick={huntJobs}
                         disabled={loading}
-                        className="px-8 bg-green-900/20 border border-green-600 text-green-400 font-bold hover:bg-green-500 hover:text-white transition-all rounded disabled:opacity-50"
+                        className="bg-green-600 hover:bg-green-500 text-white font-bold px-8 py-3 rounded-lg transition-all shadow-lg shadow-green-900/20 flex items-center justify-center self-end"
                     >
-                        {loading ? 'ANALYZING...' : 'GET DATA'}
+                        {loading ? "Scouting..." : "Hunt"}
                     </button>
-                 </div>
+                </div>
+            </div>
+            
+            {/* ADVANCED FILTER (Visual Only for Demo) */}
+            <div className="mt-6 pt-6 border-t border-gray-800 flex gap-4 text-xs text-gray-500">
+                <span className="flex items-center gap-2">
+                    <input type="checkbox" checked readOnly className="accent-green-500" /> 
+                    Ignore "Ghost" Jobs (Active > 30 days)
+                </span>
+                <span className="flex items-center gap-2">
+                    <input type="checkbox" checked readOnly className="accent-green-500" /> 
+                    Highlight Salary Transparency
+                </span>
+            </div>
+        </section>
 
-                 {marketData && (
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        
-                        {/* 1. SALARY & DEMAND CARD */}
-                        <div className="bg-gray-900/50 border border-gray-800 p-8 rounded-lg relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl text-green-500 font-bold">$</div>
-                            <h3 className="text-lg font-bold text-white mb-6">COMPENSATION & DEMAND</h3>
-                            
-                            <div className="space-y-6 relative z-10">
-                                <div>
-                                    <p className="text-xs text-gray-500 mb-1 uppercase">Estimated Salary Range</p>
-                                    <p className="text-3xl font-bold text-green-400">{marketData.salary_range}</p>
+        {/* RESULTS GRID */}
+        <section className="min-h-[500px]">
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1,2,3,4,5,6].map(i => (
+                        <div key={i} className="bg-gray-900/50 rounded-2xl h-64 animate-pulse" />
+                    ))}
+                </div>
+            ) : jobs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-96 text-gray-600 border-2 border-dashed border-gray-800 rounded-3xl">
+                    <span className="text-4xl mb-4">🦅</span>
+                    <p>Ready to hunt. Configure criteria and press start.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <AnimatePresence>
+                        {jobs.map((job) => (
+                            <motion.div
+                                key={job.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0 }}
+                                className={`
+                                    bg-gray-900 border rounded-2xl p-6 relative group overflow-hidden flex flex-col justify-between
+                                    ${job.match_score >= 80 ? "border-green-500/30" : "border-gray-800"}
+                                `}
+                            >
+                                {/* MATCH BADGE */}
+                                <div className="absolute top-4 right-4 flex flex-col items-end">
+                                    <div className={`text-xl font-black ${job.match_score >= 80 ? "text-green-400" : "text-yellow-500"}`}>
+                                        {job.match_score}%
+                                    </div>
+                                    <div className="text-[10px] font-bold text-gray-500 uppercase">Fit Score</div>
                                 </div>
+
                                 <div>
-                                    <p className="text-xs text-gray-500 mb-1 uppercase">Market Temperature</p>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
-                                            <div 
-                                                className={`h-full ${marketData.demand_score > 70 ? 'bg-red-500' : 'bg-green-500'}`} 
-                                                style={{ width: `${marketData.demand_score}%` }}
-                                            ></div>
+                                    <h3 className="font-bold text-lg text-white pr-12 leading-tight mb-1">{job.role_title}</h3>
+                                    <p className="text-sm text-gray-400 mb-4">{job.company} • {job.location}</p>
+
+                                    {/* AI INSIGHTS */}
+                                    <div className="space-y-3 mb-6">
+                                        <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700/50">
+                                            <span className="text-[10px] font-bold text-green-400 uppercase block mb-1">Why it fits</span>
+                                            <p className="text-xs text-gray-300 leading-relaxed">{job.why_good_fit}</p>
                                         </div>
-                                        <span className="text-sm font-bold text-white">{marketData.demand_level}</span>
+                                        
+                                        {job.cautionary_warning && (
+                                            <div className="bg-red-900/10 p-3 rounded-lg border border-red-500/20">
+                                                <span className="text-[10px] font-bold text-red-400 uppercase block mb-1">Gap Detected</span>
+                                                <p className="text-xs text-gray-300 leading-relaxed">{job.cautionary_warning}</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* 2. SKILL CLOUD */}
-                        <div className="bg-gray-900/50 border border-gray-800 p-8 rounded-lg">
-                            <h3 className="text-lg font-bold text-white mb-6">HOT SKILLS</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {marketData.top_skills.map((skill: string, i: number) => (
-                                    <span key={i} className="px-3 py-1 bg-black border border-gray-700 text-gray-300 text-sm rounded hover:border-green-500 hover:text-green-500 cursor-default transition-colors">
-                                        {skill}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
+                                {/* ACTION FOOTER */}
+                                <div className="flex items-center gap-3 mt-auto">
+                                    <button 
+                                        onClick={() => trackJob(job)}
+                                        disabled={trackedIds.has(job.id)}
+                                        className={`
+                                            flex-1 py-3 rounded-lg font-bold text-sm transition-all
+                                            ${trackedIds.has(job.id) 
+                                                ? "bg-gray-800 text-gray-500 cursor-default" 
+                                                : "bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20"}
+                                        `}
+                                    >
+                                        {trackedIds.has(job.id) ? "✓ Tracked" : "+ Add to Board"}
+                                    </button>
+                                    <a 
+                                        href={job.link || "#"} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="p-3 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors"
+                                    >
+                                        ↗
+                                    </a>
+                                </div>
 
-                        {/* 3. AI STRATEGY */}
-                        <div className="col-span-1 md:col-span-2 bg-black border border-green-900/30 p-8 rounded-lg">
-                            <h3 className="text-sm font-bold text-green-500 mb-2 uppercase">Market Entry Strategy</h3>
-                            <p className="text-gray-300 leading-relaxed">
-                                {marketData.market_outlook}
-                            </p>
-                        </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </div>
+            )}
+        </section>
 
-                     </div>
-                 )}
-
-            </motion.div>
-        )}
-
-      </div>
+      </main>
     </div>
   );
 }

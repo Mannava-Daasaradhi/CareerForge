@@ -1,61 +1,82 @@
-// frontend/src/app/interview/page.tsx
+
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { sendChatMessage } from '@/lib/api';
-import Navbar from '@/components/Navbar';
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Navbar from "@/components/Navbar";
 
+// --- TYPES ---
 interface Message {
-  role: 'user' | 'ai';
+  role: "user" | "ai";
   content: string;
+  critique?: string; // The "Shadow Auditor" feedback
 }
 
 interface VibeMetrics {
   confidence_score: number;
   clarity_score: number;
-  wpm?: number;
+  detected_fillers: number;
 }
 
 export default function InterviewPage() {
+  // Session State
+  const [sessionId, setSessionId] = useState<string>("");
+  const [setup, setSetup] = useState({ topic: "System Design", difficulty: 50 });
+  const [hasStarted, setHasStarted] = useState(false);
+
+  // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
-  const [critique, setCritique] = useState<string | null>(null);
-  const [metrics, setMetrics] = useState<VibeMetrics | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [inputText, setInputText] = useState("");
-  
-  // Media Recorder Refs
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [vibe, setVibe] = useState<VibeMetrics | null>(null);
+
+  // Audio Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Scroll to bottom
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  // Initialize Session
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    // Check if we have an existing session, else create one
+    let storedSession = localStorage.getItem("careerforge_session");
+    if (!storedSession) {
+      storedSession = crypto.randomUUID();
+      localStorage.setItem("careerforge_session", storedSession);
+    }
+    setSessionId(storedSession);
+  }, []);
 
-  // --- VOICE HANDLERS ---
+  // --- ACTIONS ---
+
+  const startInterview = async () => {
+    setHasStarted(true);
+    // Send a "warmup" ping to the backend to initialize the graph
+    // We send a hidden system start message
+    await sendMessage("READY_TO_START", true);
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        audioChunksRef.current = [];
-        await handleVoiceUpload(audioBlob);
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        await sendAudio(audioBlob);
       };
 
-      mediaRecorderRef.current = recorder;
-      recorder.start();
+      mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      alert("Microphone access denied or unavailable.");
+      console.error("Mic Error:", err);
+      alert("Microphone access denied.");
     }
   };
 
@@ -66,212 +87,271 @@ export default function InterviewPage() {
     }
   };
 
-  const handleVoiceUpload = async (audioBlob: Blob) => {
-    setLoading(true);
+  const sendAudio = async (audioBlob: Blob) => {
+    setIsProcessing(true);
+    
     const formData = new FormData();
-    formData.append("audio", audioBlob, "voice_input.wav");
-    formData.append("history", JSON.stringify(messages));
-    formData.append("topic", "System Design"); // Default for now
-    formData.append("difficulty", "50");
+    formData.append("audio", audioBlob, "input.webm");
+    formData.append("topic", setup.topic);
+    formData.append("difficulty", setup.difficulty.toString());
+    formData.append("session_id", sessionId); // CRITICAL: Persistence
+    formData.append("history", JSON.stringify([])); // Backend now handles history via graph memory, but we pass empty for compat
 
     try {
-      // Direct fetch to main.py endpoint
       const res = await fetch("http://localhost:8000/api/interview/voice-chat", {
         method: "POST",
+        headers: {
+             // "Authorization": "Bearer ..." // If using Auth
+        },
         body: formData,
       });
+
       const data = await res.json();
       
       // Update UI
-      setMessages(prev => [
-        ...prev, 
-        { role: 'user', content: `🎤 ${data.user_text_processed}` },
-        { role: 'ai', content: data.reply }
-      ]);
-      setCritique(data.critique);
-      setMetrics(data.vibe_metrics);
-    } catch (e) {
-      alert("Voice processing failed.");
+      if (data.user_text_processed) {
+        setMessages(prev => [...prev, { role: "user", content: data.user_text_processed }]);
+      }
+      
+      setMessages(prev => [...prev, { 
+        role: "ai", 
+        content: data.reply,
+        critique: data.critique !== "None" ? data.critique : undefined
+      }]);
+
+      if (data.vibe_metrics) {
+        setVibe(data.vibe_metrics);
+      }
+
+    } catch (err) {
+      console.error(err);
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
-  // --- TEXT HANDLER ---
-  const handleTextSubmit = async () => {
-    if (!inputText.trim()) return;
-    setLoading(true);
-    const tempText = inputText;
-    setInputText("");
+  const sendMessage = async (text: string, isSystem = false) => {
+    if (!text.trim()) return;
     
-    // Optimistic Update
-    setMessages(prev => [...prev, { role: 'user', content: tempText }]);
+    if (!isSystem) {
+        setMessages(prev => [...prev, { role: "user", content: text }]);
+        setIsProcessing(true);
+    }
 
     try {
-      const data = await sendChatMessage(tempText, messages);
-      setMessages(prev => [...prev, { role: 'ai', content: data.reply }]);
-      setCritique(data.critique);
-    } catch (e) {
-      alert("Message failed.");
+      const res = await fetch("http://localhost:8000/api/interview/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          topic: setup.topic,
+          difficulty: setup.difficulty,
+          session_id: sessionId,
+          history: [] // Backend state handles this
+        })
+      });
+
+      const data = await res.json();
+      
+      setMessages(prev => [...prev, { 
+        role: "ai", 
+        content: data.reply,
+        critique: data.critique !== "None" ? data.critique : undefined
+      }]);
+
+    } catch (err) {
+      console.error(err);
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
+  // --- RENDER ---
+
+  if (!hasStarted) {
+    return (
+      <div className="min-h-screen bg-black text-white font-sans selection:bg-cyan-500 selection:text-black">
+        <Navbar />
+        <div className="flex flex-col items-center justify-center h-[80vh] px-4">
+            <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="max-w-lg w-full bg-gray-900 border border-gray-800 p-8 rounded-2xl relative overflow-hidden"
+            >
+                <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-3xl rounded-full" />
+                <h1 className="text-3xl font-bold mb-6">Simulation Setup</h1>
+                
+                <div className="space-y-6 relative z-10">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Topic</label>
+                        <select 
+                            value={setup.topic}
+                            onChange={(e) => setSetup({ ...setup, topic: e.target.value })}
+                            className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-cyan-500 outline-none"
+                        >
+                            <option>System Design</option>
+                            <option>React & Frontend</option>
+                            <option>Python Backend</option>
+                            <option>Behavioral</option>
+                            <option>Algorithm (LeetCode)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                            Difficulty: {setup.difficulty}%
+                        </label>
+                        <input 
+                            type="range" 
+                            min="10" max="100" 
+                            value={setup.difficulty}
+                            onChange={(e) => setSetup({ ...setup, difficulty: parseInt(e.target.value) })}
+                            className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        />
+                    </div>
+
+                    <button 
+                        onClick={startInterview}
+                        className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-4 rounded-lg transition-all shadow-lg shadow-cyan-900/20"
+                    >
+                        Enter Interview Room
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-black text-gray-200 font-mono overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-black text-gray-100 font-sans flex flex-col">
       <Navbar />
       
-      <div className="flex-1 flex max-w-7xl mx-auto w-full p-6 gap-6 h-[calc(100vh-80px)]">
+      <main className="flex-1 max-w-5xl mx-auto w-full p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* LEFT: INTERVIEW INTERFACE */}
-        <div className="flex-1 flex flex-col bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden relative">
+        {/* LEFT: VISUALIZATION & VIBE */}
+        <section className="lg:col-span-1 space-y-6">
             
-            {/* Live Status Header */}
-            <div className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-xs font-bold text-gray-400">LIVE SESSION // SYSTEM DESIGN</span>
-                </div>
-                {loading && <span className="text-xs text-yellow-500 animate-pulse">AI IS THINKING...</span>}
-            </div>
-
-            {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {messages.length === 0 && (
-                    <div className="text-center text-gray-600 mt-20">
-                        <p className="text-4xl mb-4">🎙️</p>
-                        <p>Start speaking or typing to begin your mock interview.</p>
-                    </div>
+            {/* AVATAR / MICROPHONE */}
+            <div className="aspect-square bg-gray-900 rounded-3xl border border-gray-800 flex flex-col items-center justify-center relative overflow-hidden group">
+                {isRecording && (
+                    <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
                 )}
                 
-                {messages.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] p-4 rounded-lg text-sm leading-relaxed ${
-                            msg.role === 'user' 
-                                ? 'bg-blue-900/20 border border-blue-900/50 text-blue-100' 
-                                : 'bg-gray-800 border border-gray-700 text-gray-200'
-                        }`}>
-                            {msg.content}
-                        </div>
-                    </div>
-                ))}
-                <div ref={chatEndRef} />
-            </div>
-
-            {/* Input Area */}
-            <div className="p-4 bg-gray-900 border-t border-gray-800">
-                <div className="flex gap-4">
+                <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-300 ${isRecording ? "scale-110 bg-red-500/20" : "bg-cyan-500/10"}`}>
                     <button 
                         onMouseDown={startRecording}
                         onMouseUp={stopRecording}
-                        onMouseLeave={stopRecording}
-                        disabled={loading}
-                        className={`p-4 rounded-full transition-all border ${
-                            isRecording 
-                                ? 'bg-red-900/50 border-red-500 text-red-500 scale-110 shadow-[0_0_20px_rgba(220,38,38,0.5)]' 
-                                : 'bg-gray-800 border-gray-600 text-gray-400 hover:text-white hover:border-gray-400'
-                        }`}
+                        onTouchStart={startRecording}
+                        onTouchEnd={stopRecording}
+                        className={`w-24 h-24 rounded-full flex items-center justify-center shadow-2xl transition-all ${isRecording ? "bg-red-500 shadow-red-500/50" : "bg-cyan-500 hover:bg-cyan-400 shadow-cyan-500/30"}`}
                     >
-                        {isRecording ? "⬛" : "🎙️"}
-                    </button>
-                    
-                    <input 
-                        className="flex-1 bg-black border border-gray-700 rounded p-4 text-white focus:border-blue-500 outline-none"
-                        placeholder="Type your answer..."
-                        value={inputText}
-                        onChange={e => setInputText(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleTextSubmit()}
-                        disabled={loading || isRecording}
-                    />
-                    
-                    <button 
-                        onClick={handleTextSubmit}
-                        disabled={loading || !inputText}
-                        className="px-6 bg-blue-900/20 border border-blue-600 text-blue-400 font-bold rounded hover:bg-blue-600 hover:text-white transition-colors disabled:opacity-50"
-                    >
-                        SEND
+                        <svg className="w-8 h-8 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
                     </button>
                 </div>
-                <p className="text-[10px] text-gray-600 mt-2 text-center">
-                    {isRecording ? "RELEASE TO SEND" : "HOLD MIC TO SPEAK"}
+                <p className="mt-6 text-xs text-gray-500 uppercase tracking-widest font-bold">
+                    {isRecording ? "Listening..." : "Hold to Speak"}
                 </p>
             </div>
-        </div>
 
-        {/* RIGHT: SHADOW AUDITOR & METRICS */}
-        <div className="w-[350px] flex flex-col gap-6">
-            
-            {/* 1. Vibe Metrics Card */}
-            <div className="bg-black border border-gray-800 p-6 rounded-lg">
-                <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase tracking-widest">Voice Analytics</h3>
-                
-                {metrics ? (
-                    <div className="space-y-6">
-                        <div>
-                            <div className="flex justify-between text-xs mb-1">
-                                <span className="text-gray-400">Confidence</span>
-                                <span className={metrics.confidence_score > 70 ? "text-green-500" : "text-red-500"}>{metrics.confidence_score}%</span>
+            {/* VIBE CHECK METRICS */}
+            <AnimatePresence>
+                {vibe && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-gray-900 rounded-2xl border border-gray-800 p-6"
+                    >
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Voice Analytics</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <div className="flex justify-between text-sm mb-1">
+                                    <span>Confidence</span>
+                                    <span className={vibe.confidence_score < 60 ? "text-red-400" : "text-green-400"}>{vibe.confidence_score}%</span>
+                                </div>
+                                <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                                    <div 
+                                        className={`h-full rounded-full transition-all duration-1000 ${vibe.confidence_score < 60 ? "bg-red-500" : "bg-green-500"}`}
+                                        style={{ width: `${vibe.confidence_score}%` }} 
+                                    />
+                                </div>
                             </div>
-                            <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                                <motion.div 
-                                    initial={{ width: 0 }} 
-                                    animate={{ width: `${metrics.confidence_score}%` }}
-                                    className={`h-full ${metrics.confidence_score > 70 ? 'bg-green-500' : 'bg-red-500'}`}
-                                />
+
+                            <div className="flex justify-between items-center text-sm border-t border-gray-800 pt-4">
+                                <span className="text-gray-400">Filler Words</span>
+                                <span className={`font-mono font-bold ${vibe.detected_fillers > 2 ? "text-yellow-500" : "text-gray-200"}`}>
+                                    {vibe.detected_fillers} detected
+                                </span>
                             </div>
                         </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                        <div>
-                            <div className="flex justify-between text-xs mb-1">
-                                <span className="text-gray-400">Clarity</span>
-                                <span className="text-blue-500">{metrics.clarity_score}%</span>
-                            </div>
-                            <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                                <motion.div 
-                                    initial={{ width: 0 }} 
-                                    animate={{ width: `${metrics.clarity_score}%` }}
-                                    className="h-full bg-blue-500"
-                                />
-                            </div>
+        </section>
+
+        {/* RIGHT: CHAT STREAM */}
+        <section className="lg:col-span-2 flex flex-col h-[80vh] bg-gray-900/50 rounded-3xl border border-gray-800 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {messages.map((msg, i) => (
+                    <motion.div 
+                        key={i} 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                    >
+                        <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-cyan-900 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none'}`}>
+                            {msg.content}
+                        </div>
+
+                        {/* SHADOW CRITIQUE (The Unique Feature) */}
+                        {msg.critique && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                className="mt-2 mr-2 max-w-[80%] bg-orange-900/20 border border-orange-500/30 text-orange-200 text-xs p-3 rounded-lg flex gap-2 items-start"
+                            >
+                                <span className="text-orange-500 text-base">⚠</span>
+                                <div>
+                                    <span className="font-bold uppercase text-[10px] tracking-wider text-orange-500 block mb-1">Feedback</span>
+                                    {msg.critique}
+                                </div>
+                            </motion.div>
+                        )}
+                    </motion.div>
+                ))}
+                
+                {isProcessing && (
+                    <div className="flex justify-start">
+                        <div className="bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-none flex gap-1 items-center">
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" />
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce delay-100" />
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce delay-200" />
                         </div>
                     </div>
-                ) : (
-                    <p className="text-xs text-gray-600 italic text-center py-4">Speak to see metrics...</p>
                 )}
             </div>
 
-            {/* 2. The Shadow Auditor */}
-            <div className="flex-1 bg-red-900/5 border border-red-900/20 rounded-lg p-6 relative overflow-hidden flex flex-col">
-                <div className="absolute top-0 right-0 p-4 opacity-5 text-6xl text-red-500">👁️</div>
-                
-                <h3 className="text-xs font-bold text-red-500 mb-2 uppercase tracking-widest flex items-center gap-2">
-                    <span>Shadow Protocol</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
-                </h3>
-                
-                <div className="flex-1 overflow-y-auto">
-                    <AnimatePresence mode='wait'>
-                        {critique ? (
-                            <motion.div 
-                                key={critique}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                className="text-sm text-gray-300 italic leading-relaxed border-l-2 border-red-800 pl-4 py-2"
-                            >
-                                "{critique}"
-                            </motion.div>
-                        ) : (
-                            <p className="text-xs text-gray-700 mt-4">Monitoring interview for technical gaps and nervous tics...</p>
-                        )}
-                    </AnimatePresence>
-                </div>
+            {/* TEXT INPUT FALLBACK */}
+            <div className="p-4 bg-black border-t border-gray-800">
+                <input 
+                    type="text"
+                    placeholder="Type if you can't speak..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 transition-colors"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            sendMessage(e.currentTarget.value);
+                            e.currentTarget.value = "";
+                        }
+                    }}
+                />
             </div>
+        </section>
 
-        </div>
-
-      </div>
+      </main>
     </div>
   );
 }

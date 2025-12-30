@@ -2,8 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Force Dark Mode Base */
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+}
+
 body {
-  background-color: black;
-  color: white;
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  overflow-x: hidden; /* Prevent horizontal scroll from animations */
+}
+
+/* --- 1. TERMINAL SCROLLBARS --- */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #374151 #111827; /* Gray-700 Thumb, Gray-900 Track */
+}
+
+/* Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #000000; /* Black track */
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #1f2937; /* Gray-800 */
+  border-radius: 4px;
+  border: 2px solid #000000;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #06b6d4; /* Cyan-500 on hover */
+}
+
+/* --- 2. HIDE SCROLLBAR UTILITY --- */
+/* Used in the 'Visualizer' panels where we want scroll but no bar */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* --- 3. TEXT SELECTION GLOW --- */
+::selection {
+  background-color: #06b6d4; /* Cyan-500 */
+  color: #000000;
+}
+
+/* --- 4. CUSTOM ANIMATIONS --- */
+
+/* The "Blink" cursor effect for terminal inputs */
+.blink {
+  animation: blinker 1s linear infinite;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Slow Pulse for "System Online" badges */
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Scanline Effect (Optional TV look) */
+.scanline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.1)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.15;
 }

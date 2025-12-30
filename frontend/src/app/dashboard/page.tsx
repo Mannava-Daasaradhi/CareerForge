@@ -1,144 +1,215 @@
-// frontend/src/app/dashboard/page.tsx
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import Navbar from '@/components/Navbar';
-import { getApplications, getPassport, Application } from '@/lib/api';
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import Navbar from "@/components/Navbar";
+import Link from "next/link";
+
+// --- TYPES ---
+interface AgentStatus {
+  name: string;
+  status: "active" | "standby" | "sleeping";
+  last_action: string;
+  link: string;
+  icon: string;
+  color: string;
+}
+
+interface DailyBriefing {
+  greeting: string;
+  messages: string[];
+  readiness_score: number;
+}
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({ applied: 0, interviews: 0, offers: 0, rejected: 0 });
-  const [passport, setPassport] = useState<any>(null);
-  const [username, setUsername] = useState("mannava"); // Default for demo
+  const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    try {
-      // Parallel Fetch
-      const [apps, pass] = await Promise.all([
-        getApplications().catch(() => []), 
-        getPassport(username).catch(() => null)
-      ]);
-
-      // Process Kanban Stats
-      const counts = { applied: 0, interviews: 0, offers: 0, rejected: 0 };
-      (apps as Application[]).forEach(app => {
-        if (app.status === 'Applied') counts.applied++;
-        if (app.status === 'Interview') counts.interviews++;
-        if (app.status === 'Offer') counts.offers++;
-        if (app.status === 'Rejected') counts.rejected++;
-      });
-      setStats(counts);
-
-      // Set Passport
-      setPassport(pass);
-    } catch (e) {
-      console.error("Dashboard Load Failed", e);
-    } finally {
-      setLoading(false);
+  // Mock Data (In production, fetch from /api/dashboard/status)
+  const agents: AgentStatus[] = [
+    {
+      name: "Job Hunter",
+      status: "active",
+      last_action: "Found 3 'High Match' roles at Stripe, Vercel...",
+      link: "/kanban",
+      icon: "🔍",
+      color: "border-green-500 text-green-400"
+    },
+    {
+      name: "Network Sniper",
+      status: "standby",
+      last_action: "2 Drafts waiting for review.",
+      link: "/outreach",
+      icon: "🎯",
+      color: "border-cyan-500 text-cyan-400"
+    },
+    {
+      name: "Resume Auditor",
+      status: "sleeping",
+      last_action: "Resume optimized for 'Full Stack' yesterday.",
+      link: "/resume",
+      icon: "🛡️",
+      color: "border-purple-500 text-purple-400"
+    },
+    {
+      name: "Interview Coach",
+      status: "standby",
+      last_action: "Confidence Score: 72% (Needs improvement)",
+      link: "/interview",
+      icon: "🎙️",
+      color: "border-yellow-500 text-yellow-400"
+    },
+    {
+      name: "Salary Negotiator",
+      status: "standby",
+      last_action: "Battle Arena ready.",
+      link: "/negotiator",
+      icon: "💰",
+      color: "border-red-500 text-red-400"
+    },
+    {
+      name: "Skill Architect",
+      status: "active",
+      last_action: "New Challenge: 'Distributed Systems' generated.",
+      link: "/challenge",
+      icon: "⚡",
+      color: "border-blue-500 text-blue-400"
     }
-  };
-
-  const menuItems = [
-    { title: "JOB_HUNTER", path: "/hunter", icon: "📡", color: "text-purple-400", border: "border-purple-500/30", desc: "Agentic Search & Market Analysis" },
-    { title: "RESUME_FORGE", path: "/resume", icon: "📄", color: "text-yellow-400", border: "border-yellow-500/30", desc: "Deep Audit & AI Tailoring" },
-    { title: "KANBAN_OPS", path: "/kanban", icon: "🏗️", color: "text-blue-400", border: "border-blue-500/30", desc: "Mission Control & Recovery Agents" },
-    { title: "INTERVIEW_SIM", path: "/interview", icon: "🎙️", color: "text-red-400", border: "border-red-500/30", desc: "Voice Analysis & Shadow Auditor" },
-    { title: "RECRUITER_TWIN", path: "/recruiter", icon: "👤", color: "text-cyan-400", border: "border-cyan-500/30", desc: "Simulate Specific Interviewers" },
-    { title: "NETWORK_NEXUS", path: "/outreach", icon: "🤝", color: "text-green-400", border: "border-green-500/30", desc: "Proof-Based Cold Outreach" },
   ];
 
+  useEffect(() => {
+    // Simulate API Fetch
+    setTimeout(() => {
+      setBriefing({
+        greeting: "Good Morning, Candidate.",
+        messages: [
+          "While you slept, the Job Hunter identified 3 new opportunities.",
+          "Your 'React' skill badge was verified yesterday.",
+          "Recommendation: Practice 'System Design' to boost your readiness."
+        ],
+        readiness_score: 78
+      });
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+  if (loading) return <div className="min-h-screen bg-black text-white flex items-center justify-center font-mono">Initializing Command Center...</div>;
+
   return (
-    <div className="min-h-screen bg-black text-gray-200 font-mono overflow-x-hidden">
+    <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-cyan-500 selection:text-black">
       <Navbar />
-      
-      <div className="max-w-7xl mx-auto p-8">
+
+      <main className="max-w-7xl mx-auto p-6 md:p-12 space-y-12">
         
-        {/* HEADER */}
-        <div className="flex justify-between items-end mb-12 border-b border-gray-800 pb-6">
-            <div>
-                <h1 className="text-4xl font-bold text-white mb-2">COMMAND_CENTER</h1>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    SYSTEM ONLINE // USER: {username.toUpperCase()}
+        {/* HEADER & BRIEFING */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* WELCOME CARD */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="lg:col-span-2 bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-3xl p-8 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-3xl rounded-full" />
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              {briefing?.greeting}
+            </h1>
+            <div className="space-y-3">
+              {briefing?.messages.map((msg, i) => (
+                <div key={i} className="flex items-start gap-3 text-gray-400">
+                  <span className="text-cyan-500 mt-1">●</span>
+                  <p>{msg}</p>
                 </div>
+              ))}
             </div>
-            <div className="text-right hidden md:block">
-                <p className="text-3xl font-bold text-gray-700">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                <p className="text-xs text-gray-600">LOCAL_TIME</p>
-            </div>
-        </div>
-
-        {/* TOP ROW: STATS & PASSPORT */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
             
-            {/* 1. KANBAN STATUS */}
-            <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-lg text-center">
-                    <p className="text-3xl font-bold text-white mb-1">{stats.applied}</p>
-                    <p className="text-[10px] text-gray-500 uppercase">Active Applications</p>
-                </div>
-                <div className="bg-blue-900/10 border border-blue-900/30 p-6 rounded-lg text-center">
-                    <p className="text-3xl font-bold text-blue-400 mb-1">{stats.interviews}</p>
-                    <p className="text-[10px] text-blue-300/70 uppercase">Interviews Pending</p>
-                </div>
-                <div className="bg-green-900/10 border border-green-900/30 p-6 rounded-lg text-center">
-                    <p className="text-3xl font-bold text-green-400 mb-1">{stats.offers}</p>
-                    <p className="text-[10px] text-green-300/70 uppercase">Offers Received</p>
-                </div>
-                <div className="bg-red-900/10 border border-red-900/30 p-6 rounded-lg text-center">
-                    <p className="text-3xl font-bold text-red-400 mb-1">{stats.rejected}</p>
-                    <p className="text-[10px] text-red-300/70 uppercase">Recovery Tasks</p>
-                </div>
+            <div className="mt-8 flex gap-4">
+               <Link href="/kanban" className="bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-cyan-400 transition-colors">
+                  View New Jobs
+               </Link>
+               <Link href="/challenge" className="bg-gray-800 text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-700 transition-colors border border-gray-700">
+                  Daily Challenge
+               </Link>
+            </div>
+          </motion.div>
+
+          {/* READINESS GAUGE */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gray-900 border border-gray-800 rounded-3xl p-8 flex flex-col items-center justify-center relative"
+          >
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Market Readiness</h3>
+            
+            <div className="relative w-40 h-40 flex items-center justify-center">
+               {/* Background Circle */}
+               <svg className="w-full h-full transform -rotate-90">
+                 <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-gray-800" />
+                 <circle 
+                    cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="10" fill="transparent" 
+                    className="text-cyan-500" 
+                    strokeDasharray={440}
+                    strokeDashoffset={440 - (440 * (briefing?.readiness_score || 0)) / 100}
+                 />
+               </svg>
+               <div className="absolute text-center">
+                 <span className="text-4xl font-black text-white">{briefing?.readiness_score}</span>
+                 <span className="text-sm text-gray-500 block">/ 100</span>
+               </div>
             </div>
 
-            {/* 2. PASSPORT MINI-VIEW */}
-            <div className="bg-black border border-gray-800 p-6 rounded-lg relative overflow-hidden flex flex-col justify-between group hover:border-gray-600 transition-colors">
-                <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl">🛡️</div>
-                <div>
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Identity Matrix</h3>
-                    <div className="flex items-end gap-2 mb-2">
-                        <span className={`text-4xl font-bold ${passport ? 'text-white' : 'text-gray-700'}`}>
-                            {passport ? passport.github_trust_score : '--'}
-                        </span>
-                        <span className="text-sm text-gray-500 mb-1">/ 100</span>
+            <div className="mt-6 text-center text-sm text-gray-400">
+              You are in the top <span className="text-white font-bold">15%</span> of candidates.
+            </div>
+          </motion.div>
+
+        </section>
+
+        {/* AGENT GRID */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-white">Active Agents</h2>
+            <span className="text-xs text-green-500 bg-green-900/30 px-3 py-1 rounded-full animate-pulse border border-green-500/30">
+              ● System Operational
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {agents.map((agent, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * i }}
+              >
+                <Link href={agent.link}>
+                  <div className={`group bg-gray-900 border ${agent.status === 'active' ? agent.color : 'border-gray-800'} rounded-2xl p-6 hover:bg-gray-800 transition-all hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between`}>
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="text-3xl">{agent.icon}</span>
+                        <div className={`w-2 h-2 rounded-full ${agent.status === 'active' ? 'bg-green-500 animate-pulse' : 'bg-gray-600'}`} />
+                      </div>
+                      <h3 className={`font-bold text-lg mb-1 ${agent.status === 'active' ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                        {agent.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 leading-relaxed">
+                        {agent.last_action}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-400">GitHub Trust Score</p>
-                </div>
-                <Link href="/passport" className="mt-4 text-xs text-blue-500 hover:text-white flex items-center gap-1">
-                    VIEW FULL PASSPORT &rarr;
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-800 flex items-center text-xs font-bold text-gray-500 uppercase tracking-wider group-hover:text-cyan-400 transition-colors">
+                      Open Console &rarr;
+                    </div>
+                  </div>
                 </Link>
-            </div>
-        </div>
-
-        {/* MODULE GRID */}
-        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 border-l-4 border-gray-700 pl-4">Operational Modules</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {menuItems.map((item, idx) => (
-                <Link href={item.path} key={idx}>
-                    <motion.div 
-                        whileHover={{ scale: 1.02 }}
-                        className={`bg-gray-900/30 border ${item.border} p-6 rounded-lg h-full flex flex-col justify-between hover:bg-gray-800 transition-colors cursor-pointer group`}
-                    >
-                        <div>
-                            <div className="flex justify-between items-start mb-4">
-                                <span className="text-3xl bg-black p-3 rounded-lg border border-gray-800 group-hover:border-gray-600 transition-colors">{item.icon}</span>
-                                <span className="text-[10px] text-gray-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">LAUNCH &rarr;</span>
-                            </div>
-                            <h3 className={`text-xl font-bold ${item.color} mb-2`}>{item.title}</h3>
-                            <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
-                        </div>
-                    </motion.div>
-                </Link>
+              </motion.div>
             ))}
-        </div>
+          </div>
+        </section>
 
-      </div>
+      </main>
     </div>
   );
 }

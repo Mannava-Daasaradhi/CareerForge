@@ -1,68 +1,83 @@
-// frontend/src/app/negotiator/page.tsx
+
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Navbar from "@/components/Navbar";
 
-interface Message {
-  role: 'user' | 'agent';
-  content: string;
-}
-
+// --- TYPES ---
 interface Offer {
   base_salary: number;
   equity: string;
   sign_on: number;
-  benefits: string;
+  hr_comment: string;
+  hr_mood: string; // "Annoyed", "Firm", "Flexible", "Impressed"
+}
+
+interface ChatMessage {
+  role: "user" | "hr";
+  content: string;
+}
+
+interface Critique {
+  tactic_detected: string;
+  mistake: string;
+  better_response: string;
 }
 
 export default function NegotiatorPage() {
   // Setup State
-  const [role, setRole] = useState("Senior Software Engineer");
-  const [location, setLocation] = useState("New York, NY");
+  const [setup, setSetup] = useState({ role: "", location: "" });
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Chat State
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [currentOffer, setCurrentOffer] = useState<Offer | null>(null);
-  const [input, setInput] = useState("");
+  // Arena State
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [history, setHistory] = useState<ChatMessage[]>([]);
+  const [critique, setCritique] = useState<Critique | null>(null);
+  const [inputMsg, setInputMsg] = useState("");
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll chat
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [history]);
 
-  // --- API HANDLERS ---
+  // --- ACTIONS ---
 
-  const startScenario = async () => {
-    if (!role || !location) return;
+  const startBattle = async () => {
+    if (!setup.role || !setup.location) return;
     setLoading(true);
+
     try {
       const res = await fetch("http://localhost:8000/api/negotiator/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, location })
+        body: JSON.stringify(setup)
       });
       const data = await res.json();
       
+      setOffer(data);
+      setHistory([{ role: "hr", content: `Hello. We're excited to offer you the ${setup.role} position. Based on our bands in ${setup.location}, here is our initial proposal.` }]);
       setIsActive(true);
-      setCurrentOffer(data.initial_offer);
-      setMessages([{ role: 'agent', content: data.intro_message }]);
     } catch (e) {
-      alert("Failed to start negotiation. Check backend.");
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  const sendCounter = async () => {
-    if (!input.trim() || !currentOffer) return;
-    const userMsg = input;
-    setInput("");
+  const sendTurn = async () => {
+    if (!inputMsg.trim()) return;
+    const userMsg = inputMsg;
+    setInputMsg("");
     
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    // Add User Message
+    const newHistory = [...history, { role: "user", content: userMsg } as ChatMessage];
+    setHistory(newHistory);
     setLoading(true);
 
     try {
@@ -70,149 +85,203 @@ export default function NegotiatorPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          history: messages.map(m => ({ role: m.role, content: m.content })).concat({ role: 'user', content: userMsg }),
-          current_offer: currentOffer
+          history: newHistory,
+          current_offer: offer
         })
       });
       const data = await res.json();
-      
-      setMessages(prev => [...prev, { role: 'agent', content: data.reply }]);
-      if (data.new_offer) setCurrentOffer(data.new_offer);
-      
-      // Check for Deal/Walkaway in response text (Logic can be enhanced)
-      if (data.reply.includes("ACCEPTED")) alert("DEAL CLOSED! 🎉");
-      if (data.reply.includes("WALK AWAY")) alert("NEGOTIATION FAILED. 💀");
+
+      // Update State
+      setOffer(data.new_offer);
+      setHistory([...newHistory, { role: "hr", content: data.reply }]);
+      setCritique(data.critique);
 
     } catch (e) {
-      alert("Negotiation Error.");
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
+  // --- RENDER HELPERS ---
+  
+  const getMoodColor = (mood: string) => {
+    switch (mood) {
+      case "Annoyed": return "text-red-500";
+      case "Firm": return "text-yellow-500";
+      case "Flexible": return "text-blue-400";
+      case "Impressed": return "text-green-400";
+      default: return "text-gray-400";
+    }
+  };
+
+  if (!isActive) {
+    return (
+      <div className="min-h-screen bg-black text-white font-sans selection:bg-cyan-500 selection:text-black">
+        <Navbar />
+        <div className="flex flex-col items-center justify-center h-[80vh] px-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-md w-full bg-gray-900 border border-gray-800 p-8 rounded-2xl shadow-2xl relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-purple-600"></div>
+            <h1 className="text-3xl font-bold mb-2">Salary Dojo</h1>
+            <p className="text-gray-400 mb-8">
+              Practice negotiating with a stingy AI Recruiter. 
+              <br/>Can you increase the offer?
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Target Role</label>
+                <input 
+                  value={setup.role}
+                  onChange={(e) => setSetup({ ...setup, role: e.target.value })}
+                  placeholder="e.g. Senior React Dev"
+                  className="w-full bg-black border border-gray-700 rounded-lg p-3 focus:border-cyan-500 outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Location</label>
+                <input 
+                  value={setup.location}
+                  onChange={(e) => setSetup({ ...setup, location: e.target.value })}
+                  placeholder="e.g. San Francisco (Remote)"
+                  className="w-full bg-black border border-gray-700 rounded-lg p-3 focus:border-cyan-500 outline-none transition-colors"
+                />
+              </div>
+              
+              <button 
+                onClick={startBattle}
+                disabled={loading || !setup.role}
+                className="w-full bg-cyan-600 hover:bg-cyan-500 text-black font-bold py-4 rounded-lg transition-all mt-4"
+              >
+                {loading ? "Generating Offer..." : "Enter Negotiation"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-black text-gray-200 font-mono flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-black text-white font-sans flex flex-col h-screen overflow-hidden">
       <Navbar />
       
-      <div className="flex-1 max-w-7xl mx-auto w-full p-6 flex gap-8 h-[calc(100vh-80px)]">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-8 p-4 lg:p-8 overflow-hidden max-w-7xl mx-auto w-full">
         
-        {/* LEFT: WAR ROOM (OFFER TRACKER) */}
-        <div className="w-[350px] flex flex-col gap-6">
+        {/* LEFT: THE OFFER TICKET */}
+        <section className="lg:col-span-4 flex flex-col gap-4">
+          <motion.div 
+            layout
+            className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl relative"
+          >
+            <div className="absolute top-4 right-4 text-xs font-mono text-gray-500">OFFER_V{history.length + 1}</div>
             
-            {/* Config Panel */}
-            <div className={`p-6 rounded-lg border transition-colors ${isActive ? 'bg-gray-900/30 border-gray-800' : 'bg-green-900/10 border-green-500/50'}`}>
-                <h3 className="text-xs font-bold text-green-500 mb-4 uppercase tracking-widest">Scenario Config</h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-[10px] text-gray-500 uppercase block mb-1">Target Role</label>
-                        <input 
-                            className="w-full bg-black border border-gray-700 p-2 text-white rounded disabled:opacity-50"
-                            value={role} onChange={e => setRole(e.target.value)} disabled={isActive}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-[10px] text-gray-500 uppercase block mb-1">Market Location</label>
-                        <input 
-                            className="w-full bg-black border border-gray-700 p-2 text-white rounded disabled:opacity-50"
-                            value={location} onChange={e => setLocation(e.target.value)} disabled={isActive}
-                        />
-                    </div>
-                    {!isActive && (
-                        <button 
-                            onClick={startScenario} disabled={loading}
-                            className="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-3 rounded mt-2"
-                        >
-                            ENTER NEGOTIATION
-                        </button>
-                    )}
-                </div>
+            <div className="mb-6">
+              <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Compensation</h3>
+              <div className="text-4xl font-black text-white">
+                ${((offer?.base_salary || 0) + (offer?.sign_on || 0)).toLocaleString()}
+              </div>
             </div>
 
-            {/* Live Offer Board */}
-            {currentOffer && (
-                <div className="flex-1 bg-black border border-green-900/50 p-6 rounded-lg relative overflow-hidden flex flex-col justify-center">
-                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-                    
-                    <h3 className="text-center text-lg text-white font-bold mb-6 border-b border-gray-800 pb-4">CURRENT TERM SHEET</h3>
-                    
-                    <div className="space-y-6 relative z-10">
-                        <div className="text-center">
-                            <p className="text-xs text-gray-500 uppercase mb-1">Base Salary</p>
-                            <p className="text-4xl font-bold text-green-400">${currentOffer.base_salary.toLocaleString()}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                                <p className="text-xs text-gray-500 uppercase mb-1">Sign-On</p>
-                                <p className="text-xl font-bold text-white">${currentOffer.sign_on.toLocaleString()}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-gray-500 uppercase mb-1">Equity</p>
-                                <p className="text-xl font-bold text-white">{currentOffer.equity}</p>
-                            </div>
-                        </div>
-                        <div className="bg-gray-900 p-3 rounded text-center">
-                            <p className="text-[10px] text-gray-500 uppercase mb-1">Benefits Package</p>
-                            <p className="text-xs text-gray-300">{currentOffer.benefits}</p>
-                        </div>
-                    </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                <span className="text-gray-400">Base Salary</span>
+                <span className="font-mono font-bold text-cyan-400">${offer?.base_salary.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                <span className="text-gray-400">Sign-on Bonus</span>
+                <span className="font-mono font-bold text-green-400">${offer?.sign_on.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                <span className="text-gray-400">Equity</span>
+                <span className="font-mono font-bold text-purple-400">{offer?.equity}</span>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-black/50 rounded-lg border border-gray-800">
+              <div className="flex justify-between mb-2">
+                <span className="text-xs font-bold text-gray-500">HR NOTE</span>
+                <span className={`text-xs font-bold uppercase ${getMoodColor(offer?.hr_mood || "")}`}>
+                  MOOD: {offer?.hr_mood}
+                </span>
+              </div>
+              <p className="text-sm text-gray-300 italic">"{offer?.hr_comment}"</p>
+            </div>
+          </motion.div>
+
+          {/* CRITIQUE CARD (THE COACH) */}
+          <AnimatePresence>
+            {critique && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="bg-blue-900/20 border border-blue-500/30 rounded-2xl p-6"
+              >
+                <h4 className="text-blue-400 font-bold text-sm mb-2 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                  COACH WHISPER
+                </h4>
+                <p className="text-sm font-bold text-white mb-1">Detected: {critique.tactic_detected}</p>
+                <p className="text-xs text-gray-400 mb-3">{critique.mistake}</p>
+                <div className="text-sm text-blue-200 bg-blue-900/40 p-3 rounded border border-blue-500/20">
+                  "Try saying: {critique.better_response}"
                 </div>
+              </motion.div>
             )}
-        </div>
+          </AnimatePresence>
+        </section>
 
-        {/* RIGHT: NEGOTIATION TABLE (CHAT) */}
-        <div className="flex-1 bg-gray-900/50 border border-gray-800 rounded-lg flex flex-col relative overflow-hidden">
-            {!isActive && (
-                <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-10">
-                    <div className="text-center">
-                        <p className="text-6xl mb-4">🤝</p>
-                        <h2 className="text-2xl font-bold text-white mb-2">THE WAR ROOM</h2>
-                        <p className="text-gray-500">Configure the simulation to begin.</p>
-                    </div>
+        {/* RIGHT: CHAT ARENA */}
+        <section className="lg:col-span-8 flex flex-col h-full bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-6" ref={scrollRef}>
+            {history.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`
+                  max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed
+                  ${msg.role === 'user' ? 'bg-cyan-900 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none'}
+                `}>
+                  {msg.content}
                 </div>
+              </div>
+            ))}
+            {loading && (
+               <div className="flex justify-start">
+                 <div className="bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-none text-gray-500 text-xs italic animate-pulse">
+                   HR is thinking...
+                 </div>
+               </div>
             )}
+          </div>
 
-            {/* Chat Log */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                {messages.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] p-4 rounded-lg leading-relaxed text-sm shadow-lg ${
-                            msg.role === 'user' 
-                                ? 'bg-blue-900/20 border border-blue-900/50 text-blue-100' 
-                                : 'bg-gray-800 border border-gray-700 text-white'
-                        }`}>
-                            {msg.role === 'agent' && <p className="text-[10px] font-bold text-green-500 mb-2 uppercase">Recruiter</p>}
-                            {msg.content}
-                        </div>
-                    </div>
-                ))}
-                {loading && <div className="text-xs text-green-500 animate-pulse p-8">Recruiter is reviewing terms...</div>}
-                <div ref={chatEndRef} />
+          <div className="p-4 bg-black border-t border-gray-800">
+            <div className="flex gap-2">
+              <input
+                value={inputMsg}
+                onChange={(e) => setInputMsg(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendTurn()}
+                placeholder="Make your counter-offer..."
+                className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 transition-colors"
+                disabled={loading}
+              />
+              <button 
+                onClick={sendTurn}
+                disabled={loading}
+                className="bg-cyan-600 hover:bg-cyan-500 text-black font-bold px-6 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Send
+              </button>
             </div>
+          </div>
 
-            {/* Input */}
-            <div className="p-6 bg-gray-900 border-t border-gray-800">
-                <div className="flex gap-4">
-                    <input 
-                        className="flex-1 bg-black border border-gray-700 p-4 text-white focus:border-green-500 outline-none rounded"
-                        placeholder="Type your counter-offer (e.g. 'I appreciate the offer, but given my experience...')"
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && sendCounter()}
-                        disabled={loading || !isActive}
-                    />
-                    <button 
-                        onClick={sendCounter}
-                        disabled={loading || !isActive || !input}
-                        className="bg-green-700 hover:bg-green-600 text-white px-8 font-bold rounded disabled:opacity-50 transition-colors"
-                    >
-                        COUNTER
-                    </button>
-                </div>
-            </div>
+        </section>
 
-        </div>
-
-      </div>
+      </main>
     </div>
   );
 }

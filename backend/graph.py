@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from agent_state import InterviewState
 
 # Import Workers
@@ -43,5 +44,6 @@ workflow.add_edge("burnout_intervention", "lead_interviewer")
 # Exit
 workflow.add_edge("lead_interviewer", END)
 
-# 4. Compile
-app_graph = workflow.compile()
+# 4. Compile with Persistence (Fixes "State Amnesia")
+memory = MemorySaver()
+app_graph = workflow.compile(checkpointer=memory)
