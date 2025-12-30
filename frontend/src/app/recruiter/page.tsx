@@ -1,101 +1,217 @@
 // frontend/src/app/recruiter/page.tsx
-
 "use client";
-import { useState } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 
-export default function RecruiterPage() {
-  const [question, setQuestion] = useState('');
-  const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-  // In a real app, this would come from the URL (e.g., /recruiter/mannava)
-  // For demo, we hardcode 'mannava' or allow input
-  const [targetUser, setTargetUser] = useState('mannava'); 
+interface Message {
+  role: 'user' | 'twin';
+  content: string;
+}
 
-  const handleAsk = async () => {
-    if (!question) return;
+export default function RecruiterPage() {
+  // State
+  const [targetUser, setTargetUser] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Auto-scroll
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // --- ACTIONS ---
+
+  const handleConnect = () => {
+    if (!targetUser) return;
+    setIsConnected(true);
+    setMessages([{ 
+        role: 'twin', 
+        content: `[SYSTEM]: Digital Twin of @${targetUser} initialized. I have analyzed their public repositories and commit history. You may now ask me about my coding style, preferences, or technical opinions.` 
+    }]);
+  };
+
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+    
+    const userMsg = input;
+    setInput("");
+    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setLoading(true);
+
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/recruiter/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: targetUser, question }),
+      // POST to /api/recruiter/ask
+      const res = await fetch("http://localhost:8000/api/recruiter/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: targetUser,
+          question: userMsg
+        })
       });
       const data = await res.json();
-      setResponse(data.reply);
-    } catch (err) {
-      setResponse("Error connecting to Digital Twin.");
+      
+      // The backend returns a string response (or dict depending on implementation)
+      // Assuming simple string or { response: ... }
+      const replyText = typeof data === 'string' ? data : data.response || JSON.stringify(data);
+
+      setMessages(prev => [...prev, { role: 'twin', content: replyText }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'twin', content: "[ERROR]: Connection to Twin lost. Backend unavailable." }]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white font-mono">
+    <div className="min-h-screen bg-black text-gray-200 font-mono flex flex-col overflow-hidden">
       <Navbar />
-      <div className="max-w-4xl mx-auto p-8 mt-10">
+      
+      <div className="flex-1 max-w-6xl mx-auto w-full p-6 flex flex-col gap-6 h-[calc(100vh-80px)]">
         
-        {/* Header Section */}
-        <div className="border-b border-gray-800 pb-6 mb-8">
-          <h1 className="text-3xl font-bold text-green-400">
-            Digital Twin Interface <span className="text-sm text-gray-500">v4.0</span>
-          </h1>
-          <p className="text-gray-400 mt-2">
-            You are speaking to the AI agent representing <span className="text-white font-bold">{targetUser}</span>.
-            It answers based on <span className="italic">verified cryptographic proofs</span>, not just claims.
-          </p>
+        {/* HEADER & CONFIG */}
+        <div className="flex justify-between items-end border-b border-cyan-900/30 pb-4">
+            <div>
+                <h1 className="text-3xl font-bold text-cyan-500 mb-1">DIGITAL_TWIN_PROXY</h1>
+                <p className="text-xs text-cyan-800 tracking-widest">SIMULATE CONVERSATIONS WITH TARGET PROFILES</p>
+            </div>
+            
+            {!isConnected && (
+                <div className="flex gap-2 items-center">
+                    <span className="text-xs text-gray-500 mr-2">TARGET_ID:</span>
+                    <input 
+                        className="bg-gray-900 border border-gray-700 p-2 text-cyan-400 focus:border-cyan-500 outline-none rounded w-64 text-center font-bold"
+                        placeholder="GitHub Username (e.g. torvalds)"
+                        value={targetUser}
+                        onChange={e => setTargetUser(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleConnect()}
+                    />
+                    <button 
+                        onClick={handleConnect}
+                        className="bg-cyan-900/20 border border-cyan-600 text-cyan-400 px-6 py-2 font-bold hover:bg-cyan-500 hover:text-white transition-all rounded"
+                    >
+                        INITIALIZE LINK
+                    </button>
+                </div>
+            )}
+            
+            {isConnected && (
+                <div className="flex items-center gap-4">
+                    <div className="text-right">
+                        <p className="text-xs text-gray-500">CONNECTED TO</p>
+                        <p className="text-xl font-bold text-white">@{targetUser}</p>
+                    </div>
+                    <button 
+                        onClick={() => { setIsConnected(false); setMessages([]); setTargetUser(""); }}
+                        className="text-xs text-red-500 hover:text-red-400 border border-red-900 px-3 py-1 rounded"
+                    >
+                        TERMINATE
+                    </button>
+                </div>
+            )}
         </div>
 
-        {/* Chat Interface */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          {/* Main Chat */}
-          <div className="md:col-span-2 space-y-4">
-             <div className="bg-gray-900 border border-gray-800 p-6 rounded-lg min-h-[300px]">
-                {response ? (
-                  <p className="whitespace-pre-wrap leading-relaxed">{response}</p>
-                ) : (
-                  <p className="text-gray-600 italic">Waiting for recruiter inquiry...</p>
+        {/* MAIN INTERFACE */}
+        <div className="flex-1 flex gap-6 overflow-hidden">
+            
+            {/* LEFT: VISUALIZER (Static/Decor for now) */}
+            <div className="hidden md:flex w-1/4 flex-col gap-4">
+                <div className="flex-1 bg-cyan-900/5 border border-cyan-900/20 rounded-lg p-6 relative overflow-hidden flex flex-col items-center justify-center text-center">
+                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+                    
+                    {isConnected ? (
+                        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                            <div className="w-32 h-32 rounded-full border-4 border-cyan-500/30 bg-gray-900 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(6,182,212,0.2)] relative">
+                                <span className="text-4xl">👤</span>
+                                <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-black animate-pulse"></div>
+                            </div>
+                            <h3 className="text-lg font-bold text-white mb-1">@{targetUser}</h3>
+                            <p className="text-xs text-cyan-400">Digital Twin Active</p>
+                            
+                            <div className="mt-8 text-left space-y-2 w-full">
+                                <div className="h-1 w-full bg-gray-800 rounded overflow-hidden">
+                                    <div className="h-full bg-cyan-600 w-[75%] animate-pulse"></div>
+                                </div>
+                                <p className="text-[10px] text-gray-500">ANALYZING CODE PATTERNS...</p>
+                                <div className="h-1 w-full bg-gray-800 rounded overflow-hidden">
+                                    <div className="h-full bg-purple-600 w-[45%]"></div>
+                                </div>
+                                <p className="text-[10px] text-gray-500">SYNTHESIZING PERSONA...</p>
+                            </div>
+                        </motion.div>
+                    ) : (
+                        <div className="text-gray-600">
+                            <p className="text-4xl mb-4 opacity-50">🔒</p>
+                            <p className="text-xs">AWAITING TARGET</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* RIGHT: CHAT TERMINAL */}
+            <div className="flex-1 bg-black border border-gray-800 rounded-lg flex flex-col relative">
+                {!isConnected && (
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                        <p className="text-gray-500 font-mono text-sm blink">_ ESTABLISH CONNECTION TO BEGIN</p>
+                    </div>
                 )}
-             </div>
 
-             <div className="flex gap-2">
-               <input 
-                 type="text" 
-                 value={question}
-                 onChange={(e) => setQuestion(e.target.value)}
-                 placeholder="e.g., Does he truly understand System Design?"
-                 className="flex-1 bg-gray-900 border border-gray-700 p-3 rounded focus:outline-none focus:border-green-500"
-               />
-               <button 
-                 onClick={handleAsk}
-                 disabled={loading}
-                 className="bg-green-600 hover:bg-green-500 px-6 py-3 rounded font-bold disabled:opacity-50"
-               >
-                 {loading ? "Thinking..." : "ASK TWIN"}
-               </button>
-             </div>
-          </div>
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+                    {messages.map((msg, i) => (
+                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] p-4 text-sm font-mono leading-relaxed rounded-lg ${
+                                msg.role === 'user' 
+                                    ? 'bg-gray-900 border border-gray-700 text-white' 
+                                    : 'bg-cyan-900/10 border border-cyan-900/30 text-cyan-100'
+                            }`}>
+                                <span className={`block text-[10px] font-bold mb-2 uppercase ${msg.role === 'user' ? 'text-gray-500' : 'text-cyan-500'}`}>
+                                    {msg.role === 'user' ? 'YOU' : `TWIN_OF_${targetUser}`}
+                                </span>
+                                {msg.content}
+                            </div>
+                        </div>
+                    ))}
+                    {loading && (
+                        <div className="flex justify-start">
+                             <div className="bg-cyan-900/5 border border-cyan-900/20 p-4 rounded-lg">
+                                <div className="flex gap-1">
+                                    <div className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce"></div>
+                                    <div className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce delay-75"></div>
+                                    <div className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce delay-150"></div>
+                                </div>
+                             </div>
+                        </div>
+                    )}
+                    <div ref={chatEndRef} />
+                </div>
 
-          {/* Side Panel: Suggested Questions */}
-          <div className="space-y-4">
-             <div className="bg-gray-900 p-4 rounded border border-gray-800">
-               <h3 className="text-gray-400 text-sm font-bold uppercase mb-3">Verification Data</h3>
-               <div className="space-y-2 text-sm text-gray-500">
-                 <p>• GitHub Trust Score: <span className="text-green-400">Locked</span></p>
-                 <p>• Skill Passport: <span className="text-green-400">Verified</span></p>
-                 <p>• Identity: <span className="text-green-400">Confirmed</span></p>
-               </div>
-             </div>
-             
-             <div className="bg-gray-900 p-4 rounded border border-gray-800">
-               <h3 className="text-gray-400 text-sm font-bold uppercase mb-3">Try Asking:</h3>
-               <ul className="space-y-2 text-sm text-blue-400 cursor-pointer">
-                 <li onClick={() => setQuestion("What are your verified backend skills?")}>"What are your verified skills?"</li>
-                 <li onClick={() => setQuestion("Tell me about a time you failed a challenge.")}>"Tell me about a failure."</li>
-                 <li onClick={() => setQuestion("Why should I hire you over a Senior Dev?")}>"Why hire you?"</li>
-               </ul>
-             </div>
-          </div>
+                {/* Input */}
+                <div className="p-4 border-t border-gray-800 bg-gray-900/30">
+                    <div className="flex gap-4">
+                        <input 
+                            className="flex-1 bg-black border border-gray-700 p-4 text-white focus:border-cyan-500 outline-none rounded font-mono"
+                            placeholder={isConnected ? `Ask @${targetUser} a question...` : "Enter username above first..."}
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                            disabled={!isConnected || loading}
+                        />
+                        <button 
+                            onClick={handleSendMessage}
+                            disabled={!isConnected || loading || !input}
+                            className="bg-cyan-700 hover:bg-cyan-600 text-white px-8 font-bold rounded disabled:opacity-50 transition-colors"
+                        >
+                            SEND
+                        </button>
+                    </div>
+                </div>
+
+            </div>
 
         </div>
       </div>

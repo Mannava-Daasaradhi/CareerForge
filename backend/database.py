@@ -1,3 +1,5 @@
+# backend/database.py
+
 import os
 from datetime import datetime
 from dotenv import load_dotenv
@@ -22,16 +24,17 @@ class DatabaseManager:
         else:
             print("DatabaseManager: No valid credentials found. Running in Stateless Mode.")
 
-    def log_interaction(self, session_id: str, topic: str, user_input: str, ai_response: str, critique: str):
+    def log_interaction(self, user_id: str, session_id: str, topic: str, user_input: str, ai_response: str, critique: str):
         """
-        Persists the interview turn. 
+        Persists the interview turn linked to a specific USER_ID.
         This data builds the 'Trust Ledger' used by the Recruiter Portal.
         """
         if not self.enabled:
             return
         
-        # Data Payload
+        # Data Payload with USER_ID linkage
         record = {
+            "user_id": user_id,  # <--- CRITICAL SECURITY UPDATE
             "session_id": session_id,
             "topic": topic,
             "user_input": user_input,

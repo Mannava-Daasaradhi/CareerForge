@@ -1,9 +1,11 @@
+// frontend/src/app/roadmap/page.tsx
 "use client";
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import Navbar from '@/components/Navbar';
 
-// --- TYPES (Mirroring Backend) ---
+// Types based on Backend Model
 interface DailyTask {
   day_title: string;
   task_description: string;
@@ -25,125 +27,145 @@ interface CareerRoadmap {
 }
 
 export default function RoadmapPage() {
+  // Input State
   const [role, setRole] = useState("Full Stack Engineer");
-  const [gaps, setGaps] = useState("React Hooks, SQL Optimization, System Design");
+  const [gaps, setGaps] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Result State
   const [plan, setPlan] = useState<CareerRoadmap | null>(null);
 
-  const generatePlan = async () => {
+  const handleGenerate = async () => {
+    if (!gaps.trim()) return alert("Please list at least one skill gap.");
+    
     setLoading(true);
-    setPlan(null);
     try {
-      const res = await fetch('http://localhost:8000/api/career/roadmap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          target_role: role,
-          skill_gaps: gaps.split(',').map(s => s.trim())
+      const gapList = gaps.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      
+      const res = await fetch("http://localhost:8000/api/career/roadmap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            target_role: role,
+            skill_gaps: gapList
         })
       });
-      
-      if (!res.ok) throw new Error("Generation failed");
       const data = await res.json();
       setPlan(data);
     } catch (e) {
-      alert("Error contacting Ghost Tech Lead. Ensure Backend is running.");
+      alert("Failed to generate roadmap. Backend may be offline.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-200 font-mono p-4 md:p-8">
-      {/* HEADER */}
-      <div className="mb-8 border-b border-purple-900 pb-4">
-        <h1 className="text-3xl font-bold text-purple-400 tracking-tighter">GHOST_TECH_LEAD</h1>
-        <p className="text-xs text-purple-600">STRATEGIC SKILL RECOVERY ENGINE</p>
-      </div>
-
-      {/* INPUT CONSOLE */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <div className="space-y-2">
-          <label className="text-xs text-gray-500 uppercase">Target Role</label>
-          <input 
-            type="text" 
-            value={role}
-            onChange={e => setRole(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 p-3 text-white focus:border-purple-500 outline-none"
-          />
+    <div className="min-h-screen bg-black text-gray-200 font-mono overflow-x-hidden">
+      <Navbar />
+      
+      <div className="max-w-7xl mx-auto p-8">
+        
+        {/* HEADER */}
+        <div className="text-center mb-12">
+            <h1 className="text-3xl font-bold text-orange-500 mb-2">STRATEGIC_ROADMAP_GENERATOR</h1>
+            <p className="text-xs text-orange-800 tracking-widest">GHOST TECH LEAD // SKILL RECOVERY PROTOCOL</p>
         </div>
-        <div className="space-y-2">
-          <label className="text-xs text-gray-500 uppercase">Diagnosed Gaps (Comma Sep)</label>
-          <input 
-            type="text" 
-            value={gaps}
-            onChange={e => setGaps(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 p-3 text-white focus:border-purple-500 outline-none"
-          />
-        </div>
-        <div className="flex items-end">
-          <button 
-            onClick={generatePlan}
-            disabled={loading}
-            className="w-full bg-purple-900/50 border border-purple-500 text-purple-300 p-3 font-bold hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
-          >
-            {loading ? 'COMPUTING_PATH...' : 'GENERATE_PROTOCOL'}
-          </button>
-        </div>
-      </div>
 
-      {/* PLAN RENDERING */}
-      <div className="space-y-8">
-        {plan && (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }}
-            className="border-l-2 border-purple-900 pl-6"
-          >
-            <div className="mb-6">
-              <span className="bg-purple-900 text-purple-200 px-2 py-1 text-xs font-bold rounded">
-                LEVEL: {plan.candidate_level.toUpperCase()}
-              </span>
-              <span className="ml-2 text-gray-500 text-sm">{plan.total_weeks} WEEK SPRINT</span>
-            </div>
-
-            {plan.roadmap.map((week, i) => (
-              <div key={i} className="mb-12 relative">
-                {/* Week Marker */}
-                <div className="absolute -left-[33px] top-0 w-4 h-4 bg-purple-600 rounded-full border-4 border-black" />
-                
-                <h2 className="text-2xl font-bold text-white mb-2">WEEK {week.week_number}: {week.theme}</h2>
-                <p className="text-purple-400 text-sm mb-4 border-b border-gray-800 pb-2">OBJECTIVE: {week.goal}</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {week.daily_plan.map((task, j) => (
-                    <motion.div 
-                      key={j}
-                      initial={{ opacity: 0, y: 10 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ delay: j * 0.1 }}
-                      className="bg-gray-900/40 border border-gray-800 p-4 hover:border-purple-500/50 transition-colors"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-bold text-gray-300">{task.day_title}</h4>
-                        <span className="text-xs text-gray-600">{task.estimated_hours}h</span>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-4 h-12 overflow-hidden">{task.task_description}</p>
-                      <a 
-                        href={task.resource_link} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-xs text-purple-400 hover:text-purple-300 underline"
-                      >
-                        ACCESS_RESOURCE &rarr;
-                      </a>
-                    </motion.div>
-                  ))}
+        {/* INPUT SECTION */}
+        <div className="bg-gray-900/30 border border-orange-900/30 p-8 rounded-lg mb-12 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-bold block mb-2">Target Role</label>
+                    <input 
+                        className="w-full bg-black border border-gray-700 p-3 text-white focus:border-orange-500 outline-none rounded"
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                    />
                 </div>
-              </div>
-            ))}
-          </motion.div>
+                <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-bold block mb-2">Diagnosed Gaps (CSV)</label>
+                    <input 
+                        className="w-full bg-black border border-red-900/50 p-3 text-red-200 focus:border-red-500 outline-none rounded placeholder-red-900/50"
+                        placeholder="e.g. System Design, Kubernetes, Recursion"
+                        value={gaps}
+                        onChange={(e) => setGaps(e.target.value)}
+                    />
+                </div>
+            </div>
+            
+            <button 
+                onClick={handleGenerate}
+                disabled={loading}
+                className="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 font-bold rounded shadow-[0_0_20px_rgba(234,88,12,0.3)] transition-all disabled:opacity-50"
+            >
+                {loading ? 'COMPILING LEARNING PROTOCOL...' : 'GENERATE RECOVERY PLAN'}
+            </button>
+        </div>
+
+        {/* ROADMAP DISPLAY */}
+        {plan && (
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} className="space-y-12 relative">
+                
+                {/* Timeline Line (Visual Only) */}
+                <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-0.5 bg-gray-800 hidden md:block"></div>
+
+                {/* Meta Info */}
+                <div className="text-center mb-8 relative z-10">
+                    <span className="bg-black border border-orange-500 text-orange-500 px-4 py-1 rounded-full text-xs font-bold uppercase">
+                        Protocol Length: {plan.total_weeks} Weeks
+                    </span>
+                    <span className="ml-4 bg-black border border-gray-700 text-gray-400 px-4 py-1 rounded-full text-xs font-bold uppercase">
+                        Level: {plan.candidate_level}
+                    </span>
+                </div>
+
+                {/* Weekly Milestones */}
+                {plan.roadmap.map((week, idx) => (
+                    <div key={idx} className={`relative flex flex-col md:flex-row gap-8 ${idx % 2 === 0 ? 'md:flex-row-reverse' : ''}`}>
+                        
+                        {/* Empty Space for alignment */}
+                        <div className="flex-1 hidden md:block"></div>
+
+                        {/* Center Node */}
+                        <div className="absolute left-4 md:left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-black border-4 border-orange-600 z-10 flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-white">{week.week_number}</span>
+                        </div>
+
+                        {/* Content Card */}
+                        <div className="flex-1 pl-12 md:pl-0">
+                            <div className="bg-gray-900 border border-gray-800 p-6 rounded-lg hover:border-orange-500/50 transition-colors group">
+                                <h3 className="text-xl font-bold text-white mb-1">WEEK {week.week_number}: {week.theme.toUpperCase()}</h3>
+                                <p className="text-xs text-orange-400 font-bold mb-4 uppercase tracking-widest">GOAL: {week.goal}</p>
+
+                                <div className="space-y-3">
+                                    {week.daily_plan.map((day, dIdx) => (
+                                        <div key={dIdx} className="bg-black/50 p-3 rounded border border-gray-800 flex gap-4 items-start">
+                                            <div className="min-w-[40px] text-center">
+                                                <p className="text-[10px] text-gray-500 uppercase font-bold">Day</p>
+                                                <p className="text-lg font-bold text-white">{dIdx + 1}</p>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-bold text-gray-200">{day.day_title}</p>
+                                                <p className="text-xs text-gray-400 mb-2">{day.task_description}</p>
+                                                <div className="flex justify-between items-center">
+                                                    <a href={day.resource_link} target="_blank" className="text-[10px] text-blue-400 hover:text-white underline">
+                                                        VIEW RESOURCE &rarr;
+                                                    </a>
+                                                    <span className="text-[10px] text-gray-600">{day.estimated_hours}h Est.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                ))}
+
+            </motion.div>
         )}
+
       </div>
     </div>
   );
