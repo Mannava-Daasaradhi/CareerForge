@@ -46,7 +46,10 @@ app.include_router(public_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://your-vercel-app.vercel.app",  # ← fill in after Vercel deploy
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
