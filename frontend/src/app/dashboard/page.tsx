@@ -17,6 +17,22 @@ interface AgentStatus {
   color: string;
 }
 
+interface PassportData {
+  username: string;
+  readiness_score: number;
+  trust_score: number;
+  challenges_passed: number;
+  interview_sessions: number;
+  skill_verdict: string;
+}
+
+interface KanbanSummary {
+  total: number;
+  applied: number;
+  interviewing: number;
+  offers: number;
+}
+
 interface DailyBriefing {
   greeting: string;
   messages: string[];
@@ -25,6 +41,8 @@ interface DailyBriefing {
 
 export default function DashboardPage() {
   const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
+  const [passport, setPassport] = useState<PassportData | null>(null);
+  const [kanban, setKanban] = useState<KanbanSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Mock Data (In production, fetch from /api/dashboard/status)
@@ -80,19 +98,67 @@ export default function DashboardPage() {
   ];
 
   useEffect(() => {
-    // Simulate API Fetch
-    setTimeout(() => {
-      setBriefing({
-        greeting: "Good Morning, Candidate.",
-        messages: [
-          "While you slept, the Job Hunter identified 3 new opportunities.",
-          "Your 'React' skill badge was verified yesterday.",
-          "Recommendation: Practice 'System Design' to boost your readiness."
-        ],
-        readiness_score: 78
-      });
-      setLoading(false);
-    }, 1000);
+    async function loadDashboard() {
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const username = session?.user?.user_metadata?.user_name;
+        const token = session?.access_token;
+
+        // Fetch Skill Passport
+        if (username) {
+          const passportRes = await fetch(`${API_BASE}/passport/${username}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          });
+          if (passportRes.ok) {
+            const passportData: PassportData = await passportRes.json();
+            setPassport(passportData);
+            setBriefing({
+              greeting: `Welcome back, ${username}.`,
+              messages: [
+                `Your trust score is ${passportData.trust_score}/100.`,
+                `You have passed ${passportData.challenges_passed} challenges.`,
+                `Skill verdict: ${passportData.skill_verdict}`
+              ],
+              readiness_score: passportData.readiness_score
+            });
+          }
+        }
+
+        // Fetch Kanban summary
+        if (token) {
+          const kanbanRes = await fetch(`${API_BASE}/kanban/list`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (kanbanRes.ok) {
+            const apps = await kanbanRes.json();
+            setKanban({
+              total: apps.length,
+              applied: apps.filter((a: any) => a.status === "applied").length,
+              interviewing: apps.filter((a: any) => a.status === "interviewing").length,
+              offers: apps.filter((a: any) => a.status === "offer").length,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+      } finally {
+        // Fallback briefing if not logged in
+        if (!briefing) {
+          setBriefing({
+            greeting: "Welcome to CareerForge.",
+            messages: [
+              "Log in with GitHub to load your personalized dashboard.",
+              "Your Skill Passport and job pipeline will appear here.",
+              "Start with the Daily Challenge to build your score."
+            ],
+            readiness_score: 0
+          });
+        }
+        setLoading(false);
+      }
+    }
+    loadDashboard();
   }, []);
 
   if (loading) return <div className="min-h-screen bg-black text-white flex items-center justify-center font-mono">Initializing Command Center...</div>;
@@ -165,6 +231,22 @@ export default function DashboardPage() {
               You are in the top <span className="text-white font-bold">15%</span> of candidates.
             </div>
           </motion.div>
+          {/* KANBAN SUMMARY */}
+        {kanban && (
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: "Total Applications", value: kanban.total, color: "text-white" },
+              { label: "Applied", value: kanban.applied, color: "text-cyan-400" },
+              { label: "Interviewing", value: kanban.interviewing, color: "text-yellow-400" },
+              { label: "Offers", value: kanban.offers, color: "text-green-400" },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-gray-900 border border-gray-800 rounded-2xl p-5 text-center">
+                <div className={`text-3xl font-black ${stat.color}`}>{stat.value}</div>
+                <div className="text-xs text-gray-500 mt-1 uppercase tracking-widest">{stat.label}</div>
+              </div>
+            ))}
+          </section>
+        )}
 
         </section>
 
