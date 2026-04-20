@@ -4,6 +4,36 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/api";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
+
+// ← PASTE THIS BLOCK HERE, outside/above the Navbar component
+function useNavScore() {
+  const [userScore, setUserScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function fetchScore() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const username = session?.user?.user_metadata?.user_name;
+      if (!username) return;
+      try {
+        const res = await fetch(`${API_BASE}/passport/${username}`);
+        if (res.ok) {
+          const passport = await res.json();
+          setUserScore(passport.readiness_score ?? null);
+        }
+      } catch {
+        // silently fail
+      }
+    }
+    fetchScore();
+  }, []);
+
+  return userScore;
+}
+
+
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -11,7 +41,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Mock User State (In prod, use AuthContext)
-  const userScore = 78; 
+  const userScore = useNavScore(); 
 
   // Handle Scroll Effect
   useEffect(() => {
@@ -36,6 +66,7 @@ export default function Navbar() {
   ];
 
   const isActive = (path: string) => pathname === path;
+
 
   return (
     <>
@@ -116,7 +147,7 @@ export default function Navbar() {
             <Link href="/passport" className="flex items-center gap-3 pl-6 border-l border-gray-800 hover:opacity-80 transition-opacity">
               <div className="text-right hidden xl:block">
                 <div className="text-xs text-gray-400">Readiness Score</div>
-                <div className="text-sm font-bold text-cyan-400">{userScore}/100</div>
+                <div className="text-sm font-bold text-cyan-400">{userScore !== null ? userScore : "—"}/100</div>
               </div>
               <div className="w-9 h-9 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-xs font-bold text-white">
                 ME

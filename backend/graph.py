@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from agent_state import InterviewState
-
+from red_team import red_team_node
 # Import Workers
 from interviewer import lead_interviewer_node
 from shadow_auditor import shadow_auditor_node
@@ -16,14 +16,27 @@ workflow.add_node("shadow_auditor", shadow_auditor_node)
 workflow.add_node("code_sandbox", code_execution_node)
 workflow.add_node("lead_interviewer", lead_interviewer_node)
 workflow.add_node("burnout_intervention", burnout_intervention_node)
+workflow.add_node("red_team", red_team_node)
 
 # 3. Define the Flow
 
 # Entry
 workflow.set_entry_point("shadow_auditor")
-
+def should_run_red_team(state: dict) -> str:
+    critique = state.get("shadow_critique", "")
+    if critique and len(critique.strip()) > 20:
+        return "red_team"
+    return "lead_interviewer"
 # Auditor always checks safety/critique first
-workflow.add_edge("shadow_auditor", "code_sandbox")
+workflow.add_conditional_edges(
+    "shadow_auditor",
+    should_run_red_team,
+    {
+        "red_team": "red_team",
+        "lead_interviewer": "lead_interviewer",
+    }
+)
+workflow.add_edge("red_team", "lead_interviewer")
 
 # --- THE CONDITIONAL EDGE (The Cycle) ---
 # After code runs, we don't just go to Interviewer. We check for burnout.

@@ -14,10 +14,11 @@ interface TestCase {
 
 interface Challenge {
   title: string;
-  description: string;
-  difficulty: number;
-  starter_code: string;
+  scenario: string;
+  broken_code: string;
+  constraint: string;
   test_cases: TestCase[];
+  solution_summary?: string;
 }
 
 export default function ChallengePage() {
@@ -52,7 +53,7 @@ export default function ChallengePage() {
       // The backend returns a JSON string in some cases, parse if needed
       // Assuming standard structure for now
       setChallenge(data);
-      setUserCode(data.starter_code || "# Write your solution here\n");
+      setUserCode(data.broken_code || "# Write your solution here\n");
     } catch (e) {
       console.error(e);
       setOutput("Error contacting the Challenge Architect.");
@@ -153,7 +154,7 @@ export default function ChallengePage() {
               >
                 <h2 className="text-xl font-bold text-white">{challenge.title}</h2>
                 <div className="prose prose-invert max-w-none text-sm text-gray-300">
-                  <p>{challenge.description}</p>
+                  <p>{challenge.scenario}</p>
                 </div>
                 
                 <div className="mt-6">

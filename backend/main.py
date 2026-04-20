@@ -22,7 +22,7 @@ from resume_parser import analyze_resume
 from database import db_manager
 from voice_processor import VoiceProcessor
 from roadmap_generator import generate_learning_roadmap
-# from demand_analyzer import analyze_market_demand 
+from demand_analyzer import analyze_market_demand 
 from challenge_generator import generate_challenge
 from code_sandbox import execute_code 
 from recruiter_proxy import query_digital_twin
@@ -156,7 +156,7 @@ async def voice_chat_endpoint(
     session_id: str = Form(None),
     authorization: str = Header(None) 
 ):
-    user_id = "dev-user-id"
+    
     if db_manager.enabled and authorization:
         try:
             token = authorization.split(" ")[1]
@@ -164,6 +164,8 @@ async def voice_chat_endpoint(
             user_id = user.user.id
         except:
             raise HTTPException(401, "Invalid Auth Header")
+    else:
+        user_id = "dev-user-id"
 
     try:
         content = await audio.read()
@@ -206,14 +208,20 @@ async def create_challenge(request: ChallengeRequest, user_id: str = Depends(get
 async def verify_challenge(request: VerifySolutionRequest, user_id: str = Depends(get_current_user)):
     try:
         # Improved Verification: Checks if tests ACTUALLY ran
-        full_code = request.user_code + "\n\n# --- HIDDEN TEST HARNESS ---\n"
-        full_code += "try:\n"
-        for test in request.test_cases:
-            full_code += f"    print(f'Test: {test['input_val']} -> Expect {test['expected_output']}')\n"
-            full_code += f"    assert str({test['input_val']}) == '{test['expected_output']}', 'Failed Case: {test['input_val']}'\n"
-        full_code += "    print('ALL_TESTS_PASSED')\n"
-        full_code += "except Exception as e:\n"
-        full_code += "    print(f'TEST_FAILURE: {e}')\n"
+        def build_test_harness(solution_code: str, test_cases: list) -> str:
+            lines = [solution_code, ""]
+            for i, test in enumerate(test_cases):
+                safe_input = repr(test['input_val'])
+                safe_expected = repr(test['expected_output'])
+                lines.append(
+                    f"result_{i} = solution({safe_input})\n"
+                    f"assert result_{i} == {safe_expected}, "
+                    f"f'Test {i} failed: expected {safe_expected}, got {{result_{i}!r}}'"
+                )
+            lines.append("print('ALL_TESTS_PASSED')")
+            return "\n".join(lines)
+
+        full_code = build_test_harness(request.user_code, request.test_cases)
         
         output = execute_code(request.language, full_code)
         
@@ -316,6 +324,38 @@ async def get_passport(username: str, user_id: str = Depends(get_current_user)):
 @app.get("/api/audit/{username}")
 async def audit_user_endpoint(username: str):
     return auditor_agent.calculate_trust_score(username)
+
+# Route 1: Deep GitHub audit
+@app.get("/api/audit/deep/{username}")
+async def deep_audit_endpoint(username: str):
+    return auditor_agent.fetch_top_repo_context(username)
+
+
+# Route 2: Market demand analyzer
+class DemandRequest(BaseModel):
+    role: str
+    location: str = "Remote"
+
+@app.post("/api/career/demand")
+async def market_demand_endpoint(
+    request: DemandRequest,
+    user_id: str = Depends(get_current_user)
+):
+    return analyze_market_demand(request.role)
+
+
+# Route 3: Kanban rejection analysis
+class RejectionRequest(BaseModel):
+    feedback: str = ""
+
+@app.post("/api/kanban/reject/{app_id}")
+async def reject_application_endpoint(
+    app_id: str,
+    request: RejectionRequest,
+    user_id: str = Depends(get_current_user)
+):
+    from kanban import analyze_rejection
+    return analyze_rejection(app_id, request.feedback)
 
 # --- SHARED LOGIC (STATEFUL) ---
 async def run_interview_turn(user_id, message, history, topic, difficulty, session_id):

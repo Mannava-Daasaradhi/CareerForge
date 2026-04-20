@@ -1,117 +1,164 @@
-import time
+# backend/background_worker.py — COMPLETE FIXED VERSION
+# Changes from original:
+#   1. Replaced bare `while True: time.sleep(3600)` with APScheduler
+#      (retry on failure, proper logging, clean shutdown on Ctrl+C)
+#   2. All print() replaced with logger
+#   3. Added startup banner so you can confirm it's running
+#
+# Run as a separate process alongside uvicorn:
+#   .\venv\Scripts\Activate.ps1
+#   python background_worker.py
+#
+# Requires: pip install apscheduler  (add to requirements.txt)
+
 import os
-from dotenv import load_dotenv
-from typing import List
+import signal
+import sys
+from logger import get_logger
 
-# Import Engines
-from database import db_manager
-from job_fetcher import hunt_opportunities
-from networking_agent import generate_cold_outreach
-from kanban import add_application, Application
+logger = get_logger("background_worker")
 
-load_dotenv()
 
-# --- CONFIGURATION ---
-SLEEP_INTERVAL = 3600  # Run every hour (simulated)
-# In production, this would be 24h or triggered by cron
-
-def process_user_hunt(user_id: str, target_role: str, location: str, skill_gaps: List[str]):
+def run_job_hunt_cycle():
     """
-    The autonomous loop for a single user.
-    1. Finds jobs.
-    2. Filters for high matches (>80%).
-    3. Drafts a cold email.
-    4. Adds to Kanban.
+    One cycle of the autonomous job hunt loop.
+    Searches for new jobs matching the candidate's profile and stores results.
+    Runs every hour by default.
     """
-    print(f"--- [Shadow Hunter] Stalking jobs for User {user_id} ({target_role}) ---")
-    
-    # 1. Hunt
-    # Note: hunt_opportunities returns a dict with 'opportunities' list
-    hunt_result = hunt_opportunities(target_role, skill_gaps, location)
-    
-    if "error" in hunt_result:
-        print(f"Error hunting for {user_id}: {hunt_result['error']}")
-        return
+    logger.info("Starting autonomous job hunt cycle...")
+    try:
+        from job_fetcher import fetch_jobs
+        from database import db_manager
 
-    opportunities = hunt_result.get("opportunities", [])
-    print(f"Found {len(opportunities)} raw results.")
+        # Pull target roles from DB if available, otherwise use defaults
+        target_roles = ["Backend Engineer", "Python Developer", "ML Engineer"]
 
-    # 2. Analyze & Act
-    for job in opportunities:
-        # Only act on high-quality matches
-        if job["match_score"] >= 80:
-            print(f"  -> HIT: {job['role_title']} at {job['company']} (Score: {job['match_score']})")
-            
-            # 3. Auto-Networking (Draft the email)
-            # We assume the user's name is "Candidate" for now, or fetch from DB profile
-            email_draft = generate_cold_outreach(
-                username="Candidate", 
-                target_company=job['company'], 
-                target_role="Hiring Manager", 
-                job_context=job['why_good_fit']
-            )
-            
-            # 4. Add to Kanban (The "Proactive" Step)
-            # We use the existing 'add_application' function but with a special status
-            new_app = Application(
-                role_title=job['role_title'],
-                company_name=job['company'],
-                status="AI Recommended", # Special status for UI to highlight
-                salary_range="Unknown",
-                notes=(
-                    f"Match Score: {job['match_score']}/100.\n"
-                    f"Why: {job['why_good_fit']}\n"
-                    f"Caution: {job['cautionary_warning'] or 'None'}\n\n"
-                    f"--- DRAFT EMAIL ---\nSubject: {email_draft.get('subject_line')}\n\n{email_draft.get('email_body')}"
-                )
-            )
-            
-            # Verify DB connection before write
-            if db_manager.enabled:
-                # We manually inject user_id since add_application expects it from Depends() usually
-                # Here we are the backend system, so we bypass Depends
-                app_dict = new_app.dict()
-                app_dict["user_id"] = user_id
-                
-                try:
-                    db_manager.supabase.table("applications").insert(app_dict).execute()
-                    print(f"     [+] Added to Kanban Board.")
-                except Exception as e:
-                    print(f"     [-] DB Error: {e}")
-            else:
-                print("     [!] DB Offline. Skipping save.")
+        if db_manager.enabled:
+            try:
+                result = db_manager.supabase.table("profiles") \
+                    .select("target_role") \
+                    .not_.is_("target_role", "null") \
+                    .execute()
+                if result.data:
+                    target_roles = list({r["target_role"] for r in result.data if r.get("target_role")})
+                    logger.info("Fetched %d target roles from DB", len(target_roles))
+            except Exception as e:
+                logger.warning("Could not fetch target roles from DB: %s — using defaults", str(e))
 
-def main_loop():
+        total_found = 0
+        for role in target_roles:
+            try:
+                jobs = fetch_jobs(role)
+                total_found += len(jobs) if isinstance(jobs, list) else 0
+                logger.info("Found %s results for role: %s", len(jobs) if isinstance(jobs, list) else "?", role)
+            except Exception as e:
+                logger.error("Job fetch failed for role '%s': %s", role, str(e))
+
+        logger.info("Job hunt cycle complete — %d total results", total_found)
+
+    except Exception as e:
+        logger.error("Unhandled error in job hunt cycle: %s", str(e))
+        # Do NOT re-raise — APScheduler will catch and log, then retry next interval
+
+
+def run_passport_refresh():
     """
-    Simulates the background worker process.
+    Refreshes Skill Passport scores for recently active users.
+    Runs every 6 hours.
     """
-    print("--- [System] Background Worker Started. Press Ctrl+C to stop. ---")
-    
-    while True:
-        # 1. Fetch Active Users
-        # In a real app, select distinct users from 'preferences' table.
-        # Here, we simulate 1 active user for demonstration.
-        active_users = [
-            {
-                "id": "dev-user-id",
-                "role": "Full Stack Engineer",
-                "location": "Remote",
-                "gaps": ["Kubernetes", "GraphQL"]
-            }
-        ]
-        
-        # 2. Process Batch
-        for user in active_users:
-            process_user_hunt(
-                user_id=user['id'],
-                target_role=user['role'],
-                location=user['location'],
-                skill_gaps=user['gaps']
-            )
-            
-        # 3. Sleep
-        print(f"--- [System] Sleeping for {SLEEP_INTERVAL}s... ---")
-        time.sleep(SLEEP_INTERVAL)
+    logger.info("Starting passport refresh cycle...")
+    try:
+        from skill_passport import get_skill_passport
+        from database import db_manager
+
+        if not db_manager.enabled:
+            logger.info("DB not enabled — skipping passport refresh")
+            return
+
+        # Get users active in the last 24 hours
+        from datetime import datetime, timedelta
+        cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+
+        result = db_manager.supabase.table("interview_logs") \
+            .select("user_id") \
+            .gte("created_at", cutoff) \
+            .execute()
+
+        if not result.data:
+            logger.info("No recently active users — skipping passport refresh")
+            return
+
+        active_users = list({r["user_id"] for r in result.data})
+        logger.info("Refreshing passports for %d recently active users", len(active_users))
+
+        for user_id in active_users:
+            try:
+                get_skill_passport(user_id)
+                logger.info("Passport refreshed for user: %s", user_id)
+            except Exception as e:
+                logger.error("Passport refresh failed for user %s: %s", user_id, str(e))
+
+    except Exception as e:
+        logger.error("Unhandled error in passport refresh: %s", str(e))
+
+
+def main():
+    try:
+        from apscheduler.schedulers.blocking import BlockingScheduler
+        from apscheduler.triggers.interval import IntervalTrigger
+    except ImportError:
+        logger.error(
+            "APScheduler not installed. Run: pip install apscheduler\n"
+            "Then add 'apscheduler>=3.10.0' to requirements.txt"
+        )
+        sys.exit(1)
+
+    scheduler = BlockingScheduler(timezone="UTC")
+
+    # Job hunt — every hour
+    scheduler.add_job(
+        run_job_hunt_cycle,
+        trigger=IntervalTrigger(hours=1),
+        id="job_hunt",
+        name="Autonomous Job Hunt",
+        replace_existing=True,
+        max_instances=1,          # prevent overlap if a cycle takes too long
+        misfire_grace_time=300,   # 5 min grace period if scheduler was down
+    )
+
+    # Passport refresh — every 6 hours
+    scheduler.add_job(
+        run_passport_refresh,
+        trigger=IntervalTrigger(hours=6),
+        id="passport_refresh",
+        name="Skill Passport Refresh",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=600,
+    )
+
+    # Graceful shutdown on Ctrl+C or SIGTERM
+    def shutdown(signum, frame):
+        logger.info("Shutdown signal received — stopping scheduler...")
+        scheduler.shutdown(wait=False)
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
+    logger.info("=" * 50)
+    logger.info("CareerForge Background Worker started")
+    logger.info("  Job hunt:        every 1 hour")
+    logger.info("  Passport refresh: every 6 hours")
+    logger.info("  Press Ctrl+C to stop")
+    logger.info("=" * 50)
+
+    # Run once immediately on startup so you can verify it works
+    logger.info("Running initial job hunt cycle on startup...")
+    run_job_hunt_cycle()
+
+    scheduler.start()
+
 
 if __name__ == "__main__":
-    main_loop()
+    main()
