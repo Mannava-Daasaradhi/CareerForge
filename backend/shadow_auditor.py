@@ -10,11 +10,16 @@ from agent_state import InterviewState
 # Initialize Gemini 1.5 Flash
 # We wrap this in a try/except block later to handle missing keys gracefully
 try:
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        google_api_key=os.getenv("GOOGLE_API_KEY"),
-        temperature=0.0
-    )
+    _llm = None
+    def _get_llm():
+        global _llm
+        if _llm is None:
+            _llm = ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash",
+                google_api_key=os.getenv("GOOGLE_API_KEY"),
+                temperature=0.0
+            )
+        return _llm
     API_ACTIVE = True
 except Exception:
     API_ACTIVE = False
@@ -51,7 +56,7 @@ def shadow_auditor_node(state: InterviewState):
     )
 
     try:
-        response = llm.invoke([SystemMessage(content=system_prompt)])
+        response = _get_llm.invoke([SystemMessage(content=system_prompt)])
         return {"shadow_critique": response.content}
     except Exception as e:
         # Prevent crash if Google API fails

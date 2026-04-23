@@ -34,7 +34,8 @@ from skill_passport import get_skill_passport
 from networking_agent import generate_cold_outreach
 from negotiator import start_negotiation_scenario, run_negotiation_turn
 from ab_tester import run_ab_test
-from kanban import add_application, get_applications, update_status, Application
+from kanban import add_application, get_applications, update_application, Application
+
 from public_routes import router as public_router
 
 load_dotenv()
@@ -318,7 +319,8 @@ async def add_application_endpoint(app: Application, user_id: str = Depends(get_
 
 @app.post("/api/kanban/update")
 async def update_application_status(update: KanbanUpdate, user_id: str = Depends(get_current_user)):
-    return update_status(update.id, update.status)
+    from kanban import ApplicationUpdate
+    return update_application(update.id, ApplicationUpdate(status=update.status), user_id)
 
 @app.get("/api/passport/{username}")
 async def get_passport(username: str, user_id: str = Depends(get_current_user)):

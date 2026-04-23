@@ -88,3 +88,25 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+
+-- 8. SKILL PASSPORTS (Verified Credential Store)
+create table if not exists public.skill_passports (
+    id uuid default uuid_generate_v4() primary key,
+    user_id text not null unique,
+    readiness_score int default 0,
+    trust_score int default 0,
+    challenges_passed int default 0,
+    interview_sessions int default 0,
+    skill_verdict text,
+    verification_hash text,
+    hash_note text,
+    generated_at timestamptz default timezone('utc'::text, now())
+);
+alter table public.skill_passports enable row level security;
+
+create policy "Public passports are viewable by everyone"
+on public.skill_passports for select using (true);
+
+create policy "System can upsert passports"
+on public.skill_passports for all using (true);

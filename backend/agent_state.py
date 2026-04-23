@@ -19,3 +19,4 @@ class InterviewState(TypedDict):
     step_count: int
     consecutive_failures: int # Tracks how many times code/logic failed in a row
     is_burnout_risk: bool # Flag if we should switch to 'Therapist Mode'
+    red_team_verdict: Optional[str] # Output from Red Team over-engineering detectors

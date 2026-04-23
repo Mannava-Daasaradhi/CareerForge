@@ -6,7 +6,7 @@ from red_team import red_team_node
 from interviewer import lead_interviewer_node
 from shadow_auditor import shadow_auditor_node
 from code_sandbox import code_execution_node
-from burnout_guard import burnout_router, burnout_intervention_node, reset_failures
+from burnout_guard import burnout_router, burnout_intervention_node, reset_failures, track_failure_node
 
 # 1. Initialize
 workflow = StateGraph(InterviewState)
@@ -17,7 +17,7 @@ workflow.add_node("code_sandbox", code_execution_node)
 workflow.add_node("lead_interviewer", lead_interviewer_node)
 workflow.add_node("burnout_intervention", burnout_intervention_node)
 workflow.add_node("red_team", red_team_node)
-
+workflow.add_node("track_failure", track_failure_node)
 # 3. Define the Flow
 
 # Entry
@@ -40,13 +40,14 @@ workflow.add_edge("red_team", "lead_interviewer")
 
 # --- THE CONDITIONAL EDGE (The Cycle) ---
 # After code runs, we don't just go to Interviewer. We check for burnout.
+workflow.add_edge("code_sandbox", "track_failure")
 workflow.add_conditional_edges(
-    "code_sandbox",
+    "track_failure",
     burnout_router,
     {
-        "lead_interviewer": "lead_interviewer",     # Code passed -> Continue
-        "retry_prompt": "lead_interviewer",         # Code failed once -> Ask to fix (Standard)
-        "burnout_intervention": "burnout_intervention" # Code failed 3x -> Intervention
+        "lead_interviewer": "lead_interviewer",
+        "retry_prompt": "lead_interviewer",
+        "burnout_intervention": "burnout_intervention"
     }
 )
 

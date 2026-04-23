@@ -9,11 +9,17 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from agent_state import InterviewState
 
 # Initialize the Groq Model (Llama 3.3 70B)
-llm = ChatGroq(
-    temperature=0.7, 
-    model_name="llama-3.3-70b-versatile",
-    groq_api_key=os.getenv("GROQ_API_KEY")
-)
+_llm = None
+
+def _get_llm():
+    global _llm
+    if _llm is None:
+        _llm = ChatGroq(
+            temperature=0.3,
+            model_name="llama-3.3-70b-versatile",
+            groq_api_key=os.getenv("GROQ_API_KEY")
+        )
+    return _llm
 
 def lead_interviewer_node(state: InterviewState):
     """
@@ -60,6 +66,6 @@ def lead_interviewer_node(state: InterviewState):
     conversation = [SystemMessage(content=base_prompt)] + messages
     
     # Generate Response
-    response = llm.invoke(conversation)
+    response = _get_llm().invoke(conversation)
     
     return {"messages": [response]}

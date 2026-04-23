@@ -45,7 +45,7 @@ def get_skill_passport(username: str, session_id: Optional[str] = None) -> dict:
     challenges_passed = 0
     if db_manager.enabled:
         try:
-            result = db_manager.supabase.table("challenge_results") \
+            result = db_manager.supabase.table("challenge_attempts") \
                 .select("id") \
                 .eq("user_id", username) \
                 .eq("passed", True) \

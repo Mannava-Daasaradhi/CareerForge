@@ -45,3 +45,11 @@ def burnout_intervention_node(state: InterviewState):
 def reset_failures(state: InterviewState):
     """Resets counter on success"""
     return {"consecutive_failures": 0}
+
+def track_failure_node(state: InterviewState) -> dict:
+    """Increments consecutive_failures on code error, resets to 0 on success."""
+    output = state.get("code_output", "")
+    is_error = "Traceback" in output or "Error:" in output or "FAIL" in output
+    if is_error:
+        return {"consecutive_failures": state.get("consecutive_failures", 0) + 1}
+    return {"consecutive_failures": 0}

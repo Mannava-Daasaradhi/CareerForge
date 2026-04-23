@@ -27,7 +27,7 @@ def run_job_hunt_cycle():
     """
     logger.info("Starting autonomous job hunt cycle...")
     try:
-        from job_fetcher import fetch_jobs
+        from job_fetcher import hunt_opportunities as fetch_jobs
         from database import db_manager
 
         # Pull target roles from DB if available, otherwise use defaults

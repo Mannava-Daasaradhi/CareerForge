@@ -139,3 +139,4 @@ def _extract_skills(text: str) -> list:
     text_lower = text.lower()
     detected = [skill for skill in skill_keywords if skill.lower() in text_lower]
     return list(dict.fromkeys(detected))  # deduplicate while preserving order
+extract_text_with_ocr = _extract_text

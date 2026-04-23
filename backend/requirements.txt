@@ -39,3 +39,6 @@ apscheduler>=3.10.0
 # Utilities
 numpy>=2.0.0
 pandas>=2.2.0
+python-multipart>=0.0.9
+
+ddgs>=0.5.0

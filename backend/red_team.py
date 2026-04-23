@@ -4,12 +4,20 @@ from langchain_groq import ChatGroq
 from agent_state import InterviewState
 
 # Initialize Groq (Llama 3.3 70B) for its reasoning capabilities
-llm = ChatGroq(
-    temperature=0.3, 
-    model_name="llama-3.3-70b-versatile",
-    groq_api_key=os.getenv("GROQ_API_KEY")
-)
+from dotenv import load_dotenv
+load_dotenv()
 
+_llm = None
+
+def _get_llm():
+    global _llm
+    if _llm is None:
+        _llm = ChatGroq(
+            temperature=0.3,
+            model_name="llama-3.3-70b-versatile",
+            groq_api_key=os.getenv("GROQ_API_KEY")
+        )
+    return _llm
 def red_team_node(state: InterviewState):
     """
     The Red Team Auditor Node:
@@ -40,7 +48,7 @@ def red_team_node(state: InterviewState):
     )
 
     try:
-        response = llm.invoke([SystemMessage(content=system_prompt)])
+        response = _get_llm().invoke([SystemMessage(content=system_prompt)])
         return {"red_team_verdict": response.content}
     except Exception as e:
         print(f"Red Team Error: {e}")
