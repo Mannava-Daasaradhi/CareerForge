@@ -48,9 +48,9 @@ app.include_router(public_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "https://your-vercel-app.vercel.app",  # ← fill in after Vercel deploy
-        "https://careerforge-backend-production-0618.up.railway.app",
+    "http://localhost:3000",
+    "https://careerforge-zbdw.onrender.com",
+    "https://careerforge-backend-production-0618.up.railway.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
