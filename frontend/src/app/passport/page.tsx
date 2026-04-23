@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
+import { supabase } from "@/lib/api";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
 
 // --- TYPES ---
 interface Badge {
@@ -12,13 +15,13 @@ interface Badge {
   level: "Basic" | "Intermediate" | "Expert";
   minted_at: string;
   method: "GitHub Audit" | "Live Challenge" | "Interview Sim";
-  hash: string; // Simulated crypto hash
+  hash: string;
 }
 
 interface PassportData {
   username: string;
   trust_score: number;
-  rank: string; // "Top 5%", "Top 10%"
+  rank: string;
   badges: Badge[];
   audit_log: { metric: string; score: string; impact: "positive" | "negative" | "neutral" }[];
 }
@@ -28,26 +31,91 @@ export default function PassportPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock Data Fetch
-    setTimeout(() => {
-      setData({
-        username: "dev_candidate",
-        trust_score: 82,
-        rank: "Top 8%",
-        badges: [
-          { id: "b1", skill: "React Hooks", level: "Expert", minted_at: "2023-10-15", method: "Live Challenge", hash: "0x7a...9f" },
-          { id: "b2", skill: "System Design", level: "Intermediate", minted_at: "2023-11-02", method: "Interview Sim", hash: "0x3c...2a" },
-          { id: "b3", skill: "Python Scripting", level: "Expert", minted_at: "2023-09-20", method: "GitHub Audit", hash: "0x1d...4b" }
-        ],
-        audit_log: [
-          { metric: "Code Consistency", score: "A", impact: "positive" },
-          { metric: "Communication Confidence", score: "C+", impact: "negative" },
-          { metric: "Problem Solving Speed", score: "B+", impact: "positive" }
-        ]
-      });
-      setLoading(false);
-    }, 1000);
+    async function fetchPassport() {
+      try {
+        // 1. Get the logged-in user's GitHub username from Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
+        const username = session?.user?.user_metadata?.user_name || "guest";
+
+        // 2. Fetch real passport from backend
+        const res = await fetch(`${API_BASE}/passport/${username}`, {
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {},
+        });
+
+        if (!res.ok) throw new Error("Passport fetch failed");
+        const passport = await res.json();
+
+        // 3. Map real API response to display structure
+        const readiness = passport.readiness_score ?? 0;
+        const rank =
+          readiness >= 80 ? "Top 10%" :
+          readiness >= 60 ? "Top 25%" :
+          readiness >= 40 ? "Top 50%" : "Building Score";
+
+        // Build audit log from real scores
+        const audit_log = [
+          {
+            metric: "GitHub Trust",
+            score: `${passport.trust_score ?? 0}`,
+            impact: (passport.trust_score ?? 0) >= 60
+              ? "positive" as const
+              : "negative" as const,
+          },
+          {
+            metric: "Challenges Passed",
+            score: `${passport.challenges_passed ?? 0}`,
+            impact: (passport.challenges_passed ?? 0) >= 3
+              ? "positive" as const
+              : "neutral" as const,
+          },
+          {
+            metric: "Interview Sessions",
+            score: `${passport.interview_sessions ?? 0}`,
+            impact: (passport.interview_sessions ?? 0) >= 2
+              ? "positive" as const
+              : "neutral" as const,
+          },
+        ];
+
+        // Build a badge from the skill verdict (real data)
+        const badges: Badge[] = passport.skill_verdict
+          ? [{
+              id: "passport-badge",
+              skill: passport.skill_verdict,
+              level: readiness >= 70 ? "Expert" : readiness >= 40 ? "Intermediate" : "Basic",
+              minted_at: passport.generated_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+              method: "GitHub Audit",
+              hash: passport.verification_hash ?? "0x000...",
+            }]
+          : [];
+
+        setData({
+          username,
+          trust_score: passport.trust_score ?? 0,
+          rank,
+          badges,
+          audit_log,
+        });
+      } catch (e) {
+        console.error("Passport load error:", e);
+        // Show empty state rather than crashing
+        setData({
+          username: "guest",
+          trust_score: 0,
+          rank: "Unranked",
+          badges: [],
+          audit_log: [],
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPassport();
   }, []);
+
 
   if (loading) return <div className="min-h-screen bg-black text-white flex items-center justify-center font-mono">Loading Cryptographic Ledger...</div>;
 

@@ -43,7 +43,8 @@ export default function ChallengePage() {
     setOutput("");
 
     try {
-      const res = await fetch("http://localhost:8000/api/challenge/new", {
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
+      const res = await fetch(`${API_BASE}/challenge/new`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic, difficulty })
@@ -68,7 +69,8 @@ export default function ChallengePage() {
     setOutput("Compiling & verifying against hidden test cases...");
 
     try {
-      const res = await fetch("http://localhost:8000/api/challenge/verify", {
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
+      const res = await fetch(`${API_BASE}/challenge/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

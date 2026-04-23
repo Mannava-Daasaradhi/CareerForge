@@ -143,7 +143,7 @@ export default function HunterPage() {
             <div className="mt-6 pt-6 border-t border-gray-800 flex gap-4 text-xs text-gray-500">
                 <span className="flex items-center gap-2">
                     <input type="checkbox" checked readOnly className="accent-green-500" /> 
-                    Ignore "Ghost" Jobs (Active > 30 days)
+                    Ignore &quot;Ghost&quot; Jobs (Active &gt; 30 days)
                 </span>
                 <span className="flex items-center gap-2">
                     <input type="checkbox" checked readOnly className="accent-green-500" /> 

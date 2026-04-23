@@ -1,9 +1,9 @@
 # CareerForge — Complete Analysis & Star-Worthiness Upgrade Plan
 
-> A LangGraph-powered, multi-agent career operating system that combats AI-faked skills by running candidates through adversarial code sandboxes, voice confidence analysis, and GitHub entropy audits — then minting them a cryptographically-signed Skill Passport that recruiters can interrogate via a Digital Twin chatbot.
+> A LangGraph-powered, multi-agent career operating system that deploys five autonomous AI engines — adversarial code sandboxing, voice confidence analysis, GitHub entropy auditing, a real-time salary negotiation dojo, and a Digital Twin chatbot — to verify skills candidates can't fake and mint the proof into a portable Skill Passport recruiters can interrogate.
 
-**Analyzed:** April 20, 2026  
-**Completion:** ~65% — Most agents are implemented and wired together, but several integration gaps, dependency errors, and data-mocking shortcuts prevent a clean cold-start run.  
+**Analyzed:** April 22, 2026
+**Completion:** ~72% — The backend's 20+ agents are largely real and wired together, but six broken import seams, a never-incrementing burnout counter, three frontend pages on hardcoded mock data, and a missing `frontend/.env.local.example` prevent a clean cold-start run.
 **Verdict:** WORKING BUT ROUGH
 
 ---
@@ -11,19 +11,19 @@
 ## 1. What this project is
 
 ### Purpose
-CareerForge addresses the collapse of trust in technical hiring caused by "Vibecoding" — candidates using AI to fake skills they don't have. It deploys a swarm of autonomous agents to adversarially verify skills (broken code sandboxes, GitHub commit-entropy audits, voice nervousness detection), then compiles results into a portable "Skill Passport" that replaces unverifiable resume claims. The outcome is a two-sided platform: candidates get a career command center, recruiters get a verified talent signal.
+CareerForge addresses the collapse of trust in technical hiring caused by AI-assisted cheating: candidates use ChatGPT to ace take-homes, Copilot to pass live challenges, and AI-generated commit histories to fake GitHub portfolios. The project deploys a swarm of autonomous agents to adversarially verify skills rather than merely evaluate them, then compiles all evidence into a Skill Passport — a portable, hash-consistent credential that replaces unverifiable resume claims. The outcome is a two-sided platform: candidates get an AI career command center, recruiters get a verified signal instead of noise.
 
 ### Who it's for
-Software engineering candidates (junior to mid-level) who want AI-assisted job hunting, interview prep, and verifiable skill credentials, and recruiters who want signal over noise in an AI-saturated applicant pool.
+Software engineering candidates (junior to mid-level) who want AI-assisted job hunting, interview prep, and verifiable credentials — and technical recruiters who want a trustworthy alternative to keyword-matched resumes in an AI-saturated applicant pool.
 
 ### What makes it interesting
 
-- **LangGraph stateful multi-agent graph with real persistence**: The interview engine uses `MemorySaver` checkpointing so burnout state, failure counters, and conversation history survive across API calls — this is architecturally more sophisticated than the typical stateless LLM endpoint.
-- **Adversarial verification loop**: The "Cursed Sandbox" generates *deliberately broken* code based on the candidate's own claims, then verifies their fix via the Piston API — a genuinely creative approach to defeating faked competence.
-- **Zero-cost infrastructure thesis**: The entire AI stack runs on free tiers (Groq for Llama inference, Gemini Flash for vision, Supabase for PostgreSQL) — it's a real deployment architecture, not a toy.
+- **LangGraph stateful multi-agent graph with real persistence**: The interview engine uses `MemorySaver` checkpointing so burnout failure counters, Shadow Auditor critique history, and conversation state survive across separate HTTP requests — architecturally more sophisticated than the typical stateless LLM endpoint.
+- **Adversarial verification via deliberate sabotage**: The "Cursed Sandbox" generates *intentionally broken* code calibrated to the candidate's claimed skill level, then verifies their fix via the Piston API. A candidate can't pass by copying a correct solution from ChatGPT because the bug is generated fresh each time — this is a genuinely novel approach to defeating AI-faked competence.
+- **Zero-cost infrastructure thesis**: The entire AI stack runs on free tiers (Groq for Llama 3.3 inference, Gemini 2.0 Flash as Shadow Auditor, Supabase for PostgreSQL with pgvector) — it's a real, deployable architecture with a credible cost-at-zero pitch.
 
 ### Current state in one paragraph
-The backend is the strong half of this repo. Most of the 20+ Python modules are meaningfully implemented — the LangGraph graph compiles and runs, the Groq/Gemini calls are real, the Piston sandbox integration works, and the Supabase schema with RLS policies is production-worthy. However, several integration seams have broken silently: `requirements.txt` has a syntax error that breaks `pip install`, `pypdf` is used in code but `pymupdf` is listed instead, `langchain-community` is missing entirely, the `demand_analyzer` is imported but commented out so its API routes don't exist, the burnout failure counter never actually increments (so burnout protection is always dormant), `red_team.py` is fully written but wired to nothing, and the frontend roadmap/dashboard pages use `setTimeout` mock data instead of calling the real API. The frontend itself is visually impressive — a consistent cyberpunk aesthetic with Framer Motion animations — but the Navbar has a hardcoded score, the API base URL is hardcoded to `localhost:8000` with no environment variable, and there's no frontend `.env.example`. To get this to a genuinely impressive, runnable state requires fixing roughly a dozen specific issues, none of which require rewriting core logic.
+The backend is the strong half of this repo — most of the 20+ Python modules are meaningfully implemented, the LangGraph graph compiles and runs, Groq and Gemini calls are real, the Piston sandbox integration works, and the Supabase schema with RLS policies is production-worthy. However, six critical integration seams are broken: `resume_tailor.py` and `background_worker.py` import `extract_text_with_ocr` and `fetch_jobs` which do not exist in `resume_parser.py` and `job_fetcher.py` respectively — causing immediate `ImportError` on startup; the `burnout_guard.py` router reads `consecutive_failures` but never writes it back, so burnout protection is permanently dormant; `red_team_verdict` is missing from `InterviewState` so the red team node silently discards its output; `public_routes.py` serves hardcoded mock passport data; and three frontend pages (`/passport`, `/dashboard` agent statuses, `/roadmap`) render hardcoded `setTimeout` mock data instead of calling the real API. The frontend itself is visually impressive — a consistent cyberpunk aesthetic with Framer Motion animations — but the missing `frontend/.env.local.example` means frontend setup will fail for any new contributor. None of these require rewriting core logic; every fix is a targeted patch.
 
 ---
 
@@ -31,131 +31,145 @@ The backend is the strong half of this repo. Most of the 20+ Python modules are 
 
 ```
 CareerForge/
-├── Readme.md                    ✅ Good narrative, missing setup steps & screenshots
-├── .gitignore                   ✅ Correct — covers .env, node_modules, __pycache__
-├── LICENSE                      ❌ MISSING — README claims MIT but no file exists
+├── Readme.md                       ✅ Strong narrative, good architecture diagram, sample outputs
+├── CONTRIBUTING.md                 ✅ Excellent — explains how to add agents and LangGraph nodes
+├── LICENSE                         ✅ MIT license present
+├── .gitignore                      ✅ Covers .env, node_modules, __pycache__, venv
+├── .pre-commit-config.yaml         ✅ ruff, prettier, pre-commit-hooks wired up
+├── docker-compose.yml              ✅ Backend + frontend services, env_file wired
+├── CareerForge_Analysis.md         🔶 Previous (partial) analysis doc — superseded by this one
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  ✅ CI: Python tests + Next.js build on push/PR
 │
 ├── backend/
-│   ├── main.py                  ✅ FastAPI entrypoint, 15+ routes, auth, CORS
-│   ├── graph.py                 ✅ LangGraph stateful workflow (compiles & runs)
-│   ├── agent_state.py           ✅ TypedDict with burnout tracking fields
-│   ├── interviewer.py           ✅ Lead interviewer LangGraph node (Llama 3.3)
-│   ├── shadow_auditor.py        ✅ Silent Gemini critique node
-│   ├── burnout_guard.py         🔶 Implemented but counter never increments (bug)
-│   ├── auditor.py               ✅ GitHub trust scorer + deep repo context
-│   ├── database.py              ✅ Supabase singleton with graceful offline fallback
-│   ├── resume_parser.py         🔶 Works but returns str not dict in success path
-│   ├── voice_processor.py       ✅ Groq Whisper + confidence metrics
-│   ├── challenge_generator.py   ✅ Structured output "Cursed Challenge" generation
-│   ├── code_sandbox.py          ✅ Piston API execution + LangGraph node
-│   ├── roadmap_generator.py     ✅ Structured weekly roadmap generation
-│   ├── skill_passport.py        🔶 Works but interview score aggregation has bug
-│   ├── negotiator.py            ✅ Coach + HR opponent negotiation simulation
-│   ├── networking_agent.py      ✅ Proof-based cold outreach generation
-│   ├── ab_tester.py             ✅ Two-variant resume generator
-│   ├── kanban.py                🔶 CRUD works, analyze_rejection not exposed as route
-│   ├── job_fetcher.py           ✅ DuckDuckGo + AI structured job hunting
-│   ├── demand_analyzer.py       🔶 Implemented but import is COMMENTED OUT in main.py
-│   ├── background_worker.py     🔶 Standalone script, not integrated into startup
-│   ├── red_team.py              🔶 Fully written but never imported or wired into graph
-│   ├── recruiter_proxy.py       ✅ Digital twin with passport evidence
-│   ├── public_routes.py         🔶 MOCK DATA — hardcoded, no DB reads
-│   ├── resume_tailor.py         ✅ Ghostwriter engine with structured output
-│   ├── supabase_schema.sql      ✅ Complete schema with RLS, triggers, extensions
-│   ├── .env.example             🔶 Missing GITHUB_TOKEN entry
-│   ├── requirements.txt         ❌ Syntax error (pandas===), missing pypdf, langchain-community, google-generativeai
+│   ├── main.py                     ✅ FastAPI entrypoint — 18+ routes, auth, CORS, PII redaction
+│   ├── graph.py                    ✅ LangGraph stateful workflow — compiles and runs
+│   ├── agent_state.py              🔶 Missing `red_team_verdict: Optional[str]` field
+│   ├── interviewer.py              ✅ Lead interviewer node (Llama 3.3 via Groq)
+│   ├── shadow_auditor.py           ✅ Silent critique node (Gemini 2.0 Flash)
+│   ├── burnout_guard.py            🔶 Router logic correct; counter never increments (critical bug)
+│   ├── red_team.py                 🔶 Fully written but result field missing from state — output silently lost
+│   ├── auditor.py                  ✅ GitHub trust scorer + deep repo context fetcher
+│   ├── database.py                 ✅ Supabase singleton with graceful offline/stateless fallback
+│   ├── resume_parser.py            ✅ Two-pass OCR + pypdf extraction, always returns dict
+│   ├── resume_tailor.py            ❌ Imports `extract_text_with_ocr` which doesn't exist → ImportError on startup
+│   ├── voice_processor.py          ✅ Groq Whisper transcription + text confidence metrics
+│   ├── challenge_generator.py      ✅ Structured "Cursed Challenge" generation via Groq
+│   ├── code_sandbox.py             ✅ Piston API execution + LangGraph node
+│   ├── roadmap_generator.py        ✅ Structured weekly roadmap with Pydantic output
+│   ├── demand_analyzer.py          ✅ DuckDuckGo + LLM market pulse (imported correctly in main.py)
+│   ├── skill_passport.py           ✅ Aggregates trust score + DB results; interview query fixed
+│   ├── negotiator.py               ✅ Coach + HR opponent negotiation with structured output
+│   ├── networking_agent.py         ✅ Proof-based cold outreach generation
+│   ├── ab_tester.py                ✅ Two-variant resume A/B generator
+│   ├── kanban.py                   ✅ Full CRUD + rejection analysis; properly wired in main.py
+│   ├── job_fetcher.py              ❌ Exports `hunt_opportunities()` but background_worker imports `fetch_jobs()` → ImportError
+│   ├── recruiter_proxy.py          ✅ Digital Twin with passport evidence
+│   ├── public_routes.py            🔶 Routes wired to real functions (fixed), no longer mock
+│   ├── background_worker.py        ❌ Imports `fetch_jobs` (doesn't exist) → crashes on startup
+│   ├── logger.py                   ✅ Shared structured logger, replaces print()
+│   ├── rate_limiter.py             ✅ In-memory sliding window limiter — written but NOT wired into any route
+│   ├── supabase_schema.sql         ✅ Full schema: profiles, interview_logs, applications, challenge_attempts, RLS
+│   ├── railway.toml                ✅ Railway deployment config
+│   ├── Dockerfile                  ✅ Python 3.11-slim + tesseract + poppler installed
+│   ├── .env.example                ✅ All 5 required variables documented with sources
+│   ├── requirements.txt            🔶 All deps present and correctly versioned; numpy/pandas unused
 │   └── tests/
-│       ├── test_flow.py         🔶 Integration tests — 2 of 6 hit non-existent routes
-│       ├── test_gemini.py       🔶 Smoke test script, not a proper unittest
-│       ├── model.py             🔶 Debug utility, not a test
-│       └── verify_fix.py        ✅ Proper unittest for auditor offline resilience
+│       ├── verify_fix.py           ✅ Real unittest — auditor offline resilience (mocked network)
+│       ├── test_flow.py            ✅ Integration test suite — 6 routes, fixed to use correct endpoints
+│       ├── test_gemini.py          🔶 Smoke test script, not a proper unittest
+│       └── model.py                🔶 Dev utility (lists Gemini models), not a test
 │
 └── frontend/
-    ├── package.json             ✅ Pinned deps, Next.js 16, React 19
-    ├── next.config.ts           ✅ React Compiler enabled
-    ├── tailwind.config.ts       ✅ Standard config
-    ├── tsconfig.json            ✅ Standard TS config
-    ├── eslint.config.mjs        ✅ Standard lint config
-    ├── postcss.config.mjs       ✅ Standard
-    ├── .gitignore               ✅ Correct
-    ├── README.md                🔶 Default Next.js README, not project-specific
-    ├── public/                  🔶 Only default Next.js SVGs, no project assets
+    ├── package.json                ✅ Pinned deps — Next.js 16, React 19, Framer Motion, Supabase
+    ├── next.config.ts              ✅ React Compiler enabled
+    ├── tailwind.config.ts          ✅ Standard config
+    ├── tsconfig.json               ✅ Standard strict TypeScript config
+    ├── eslint.config.mjs           ✅ Standard ESLint config
+    ├── vercel.json                 ✅ Vercel deployment config
+    ├── Dockerfile                  ✅ Node 20-alpine, multi-stage build
+    ├── README.md                   🔶 Default Next.js README — not project-specific
+    ├── public/                     🔶 Only default Next.js SVGs — no screenshots/demo assets
+    ├── .env.local.example          ❌ MISSING — frontend setup will fail for new contributors
     └── src/
-        ├── lib/api.ts           🔶 Hardcoded localhost:8000, missing env var; 2 functions call non-existent routes
+        ├── lib/api.ts              🔶 Complete typed API client; `framer-motion` missing from imports
         ├── components/
-        │   └── Navbar.tsx       🔶 Hardcoded userScore=78, no real auth state
+        │   └── Navbar.tsx          ✅ Responsive, animated, fetches live readiness score
         └── app/
-            ├── layout.tsx       ✅ Root layout with fonts and metadata
-            ├── globals.css      ✅ Tailwind base
-            ├── page.tsx         ✅ Landing page — complete, polished
-            ├── login/page.tsx   ✅ Real Supabase auth with cyberpunk UI
-            ├── dashboard/page.tsx 🔶 Mock data (setTimeout), no real API calls
-            ├── interview/page.tsx ✅ Voice recording + real backend calls
-            ├── resume/page.tsx  ✅ Upload + audit + tailor + AB tabs
-            ├── kanban/page.tsx  ✅ Drag-drop board with rejection modal
-            ├── hunter/page.tsx  ✅ Job search UI with real API call
-            ├── challenge/page.tsx 🔶 Type mismatch vs backend CursedChallenge model
-            ├── roadmap/page.tsx 🔶 All mock data, no backend call
-            ├── negotiator/page.tsx ✅ Real API call to /negotiator/start and /chat
-            ├── outreach/page.tsx ✅ Real API call to /network/generate
-            ├── passport/page.tsx 🔶 Likely mock (uses getPassport but may fail)
-            ├── recruiter/page.tsx ✅ Digital twin chat UI
-            ├── experiments/page.tsx ✅ Resume A/B test UI
-            └── candidate/[username]/page.tsx ✅ Public profile page (uses mock public route)
-    ├── frontend/.env.local.example  ❌ MISSING — Supabase env vars not documented
-    ├── Dockerfile               ❌ MISSING
-    ├── docker-compose.yml       ❌ MISSING
-    └── .github/workflows/       ❌ MISSING — No CI
+            ├── layout.tsx          ✅ Root layout, JetBrains Mono + Inter fonts, SEO metadata
+            ├── globals.css         ✅ Tailwind base styles
+            ├── page.tsx            ✅ Landing page — polished, Framer Motion animations
+            ├── login/page.tsx      ✅ Real Supabase auth with cyberpunk UI
+            ├── dashboard/page.tsx  🔶 Agent status cards use hardcoded mock array; real passport fetch present
+            ├── interview/page.tsx  ✅ Voice recording + text fallback + real backend calls
+            ├── resume/page.tsx     ✅ Upload / audit / tailor / A/B tabs with real API
+            ├── kanban/page.tsx     ✅ Drag-drop board with rejection modal and real API
+            ├── hunter/page.tsx     ✅ Job search with real API call
+            ├── challenge/page.tsx  🔶 Field name mismatch vs backend (`description` vs `scenario`)
+            ├── roadmap/page.tsx    🔶 Has generateRoadmap() with real API call — needs auth header added
+            ├── negotiator/page.tsx ✅ Real API calls to /negotiator/start and /chat
+            ├── outreach/page.tsx   ✅ Real API call to /network/generate
+            ├── passport/page.tsx   🔶 Entirely hardcoded mock data — getPassport() never called
+            ├── recruiter/page.tsx  🔶 Has askDigitalTwin() wired; mock initial data
+            ├── experiments/page.tsx 🔶 A/B test page exists; API call needs auth header
+            └── candidate/[username]/page.tsx ✅ Public profile page with real fetch
 ```
 
 ---
 
 ## 3. Completion status
 
-**Overall: ~65% complete**
+**Overall: ~72% complete**
 
 | Component | File(s) | Status | What's done | What's missing |
 |-----------|---------|--------|-------------|----------------|
-| LangGraph Interview Graph | `graph.py`, `agent_state.py` | ✅ Done | Full stateful graph, MemorySaver, burnout routing | — |
-| Lead Interviewer Node | `interviewer.py` | ✅ Done | Dynamic prompt injection, critique integration | — |
-| Shadow Auditor Node | `shadow_auditor.py` | ✅ Done | Gemini-powered real-time critique | — |
-| Burnout Guard | `burnout_guard.py` | 🔶 Partial | Router logic and intervention node exist | Counter never increments (critical bug) |
-| Red Team Node | `red_team.py` | 🔶 Dead code | Fully written over-engineering detector | Never imported, never wired into graph, field missing from InterviewState |
-| GitHub Auditor | `auditor.py` | ✅ Done | Trust scoring, deep repo context fetch | GITHUB_TOKEN not in .env.example |
-| Voice Processor | `voice_processor.py` | ✅ Done | Whisper transcription, confidence analysis | — |
-| Resume Parser | `resume_parser.py` | 🔶 Partial | OCR + PyPDF fallback, AI analysis | Returns str on success, dict on error — type inconsistency |
-| Resume Tailor | `resume_tailor.py` | ✅ Done | Ghostwriter structured output | — |
-| Challenge Generator | `challenge_generator.py` | ✅ Done | Pydantic structured output challenges | — |
-| Code Sandbox | `code_sandbox.py` | ✅ Done | Piston API + LangGraph node | — |
-| Job Fetcher | `job_fetcher.py` | ✅ Done | DuckDuckGo search + AI filtering | langchain-community not in requirements |
-| Demand Analyzer | `demand_analyzer.py` | 🔶 Disabled | Full implementation | Import commented out in main.py; routes don't exist |
-| Roadmap Generator | `roadmap_generator.py` | ✅ Done | Structured weekly plan generation | — |
-| Skill Passport | `skill_passport.py` | 🔶 Partial | GitHub trust + DB aggregation | Interview log query uses empty session_id string, never scores correctly |
-| Negotiator | `negotiator.py` | ✅ Done | Coach + HR agent, structured output | — |
-| Networking Agent | `networking_agent.py` | ✅ Done | Proof-based cold email | — |
-| AB Tester | `ab_tester.py` | ✅ Done | Two resume variants generation | — |
-| Kanban | `kanban.py` | 🔶 Partial | CRUD ops + rejection analysis | `analyze_rejection` never exposed as API route |
-| Recruiter Proxy | `recruiter_proxy.py` | ✅ Done | Digital twin with evidence | — |
-| Public Routes | `public_routes.py` | 🔶 Stub | Router registered, returns mock data | Hardcoded data — must read from DB |
-| Background Worker | `background_worker.py` | 🔶 Partial | Autonomous job hunt loop | No startup integration, no scheduler |
-| Database | `database.py` | ✅ Done | Supabase client, offline fallback, logging | — |
-| Supabase Schema | `supabase_schema.sql` | ✅ Done | RLS, triggers, uuid-ossp | No migration runner, manual-apply only |
-| FastAPI Routes | `main.py` | 🔶 Partial | 15 routes implemented | Missing: /audit/deep, /career/demand, /kanban/reject |
-| Dependencies | `requirements.txt` | ❌ Broken | Partial list | Syntax error; missing pypdf, langchain-community, google-generativeai; pymupdf listed but not used |
-| Frontend ENV | `.env.local.example` | ❌ Missing | — | Supabase keys undocumented for frontend |
-| Frontend API client | `src/lib/api.ts` | 🔶 Partial | All major calls defined | Base URL hardcoded to localhost; 2 functions call non-existent routes |
-| Landing Page | `page.tsx` | ✅ Done | Complete, animated, polished | — |
-| Login | `login/page.tsx` | ✅ Done | Real Supabase auth, cyberpunk UI | — |
-| Dashboard | `dashboard/page.tsx` | 🔶 Mock | UI complete | All data is setTimeout mock, no real API calls |
-| Interview | `interview/page.tsx` | ✅ Done | Voice + text, real backend calls | — |
-| Resume | `resume/page.tsx` | ✅ Done | Upload/audit/tailor/AB tabs, real calls | — |
-| Kanban | `kanban/page.tsx` | ✅ Done | Drag-drop, rejection modal | — |
-| Challenge | `challenge/page.tsx` | 🔶 Partial | UI complete, API call exists | Type mismatch: frontend Challenge ≠ backend CursedChallenge |
-| Roadmap | `roadmap/page.tsx` | 🔶 Mock | UI complete with skill tree | All mock data, never calls /api/career/roadmap |
-| Hunter | `hunter/page.tsx` | ✅ Done | Search UI, real API call | — |
-| Tests | `tests/` | 🔶 Partial | 1 real unittest, 3 integration scripts | 2 integration tests hit non-existent endpoints; no pytest config; no coverage |
-| Docker/CI/CD | — | ❌ Missing | — | No Dockerfile, no docker-compose, no GitHub Actions |
-| LICENSE | — | ❌ Missing | Badge says MIT but no file | — |
+| LangGraph interview graph | `graph.py`, `agent_state.py` | 🔶 Partial | Compiles, runs, MemorySaver persistence works | `red_team_verdict` missing from state; burnout counter never written back |
+| Lead Interviewer node | `interviewer.py` | ✅ Done | Full Llama 3.3 call, dynamic prompt injection from critique | — |
+| Shadow Auditor node | `shadow_auditor.py` | ✅ Done | Gemini 2.0 Flash critique with graceful key-missing fallback | — |
+| Burnout Guard | `burnout_guard.py` | 🔶 Broken | Router reads counter; intervention node exists | Counter never incremented — always reads 0, intervention unreachable |
+| Red Team node | `red_team.py` | 🔶 Broken | LLM call implemented, wired into graph | `red_team_verdict` field missing from `InterviewState` — output silently lost |
+| GitHub Auditor | `auditor.py` | ✅ Done | Trust score + deep repo context, graceful offline | — |
+| Code Sandbox | `code_sandbox.py` | ✅ Done | Piston API execution + LangGraph node + multi-language | — |
+| Resume Parser | `resume_parser.py` | ✅ Done | Two-pass OCR + pypdf, always returns dict | — |
+| Resume Tailor | `resume_tailor.py` | ❌ Broken | Ghostwriter logic correct | Imports `extract_text_with_ocr` which doesn't exist → `ImportError` on server start |
+| Voice Processor | `voice_processor.py` | ✅ Done | Groq Whisper, confidence metrics, graceful fallback | — |
+| Challenge Generator | `challenge_generator.py` | ✅ Done | Structured output, fallback challenge | — |
+| Roadmap Generator | `roadmap_generator.py` | ✅ Done | Pydantic structured weekly plan | — |
+| Demand Analyzer | `demand_analyzer.py` | ✅ Done | DuckDuckGo + LLM synthesis, wired to route | — |
+| Skill Passport | `skill_passport.py` | ✅ Done | Aggregation fixed, persistence, hash | `challenge_results` table name mismatches schema (`challenge_attempts`) |
+| Negotiator | `negotiator.py` | ✅ Done | Coach + HR opponent, structured output | — |
+| Networking Agent | `networking_agent.py` | ✅ Done | Proof-based outreach, passport integration | — |
+| A/B Tester | `ab_tester.py` | ✅ Done | Two-variant generation, full content output | — |
+| Kanban | `kanban.py` | ✅ Done | Full CRUD + rejection analysis, all routes wired | — |
+| Job Fetcher | `job_fetcher.py` | 🔶 Broken | `hunt_opportunities()` fully works | Exports wrong name — background worker imports `fetch_jobs` → `ImportError` |
+| Background Worker | `background_worker.py` | ❌ Broken | APScheduler wiring, passport refresh logic | Imports `fetch_jobs` (wrong name); separate process, no Procfile/startup hook |
+| Recruiter Proxy | `recruiter_proxy.py` | ✅ Done | LLM-powered digital twin with evidence | — |
+| Public Routes | `public_routes.py` | ✅ Done | Wired to real skill_passport and recruiter_proxy | — |
+| Rate Limiter | `rate_limiter.py` | 🔶 Unused | Fully implemented sliding window | Not wired to any route in main.py |
+| Database layer | `database.py` | ✅ Done | Supabase singleton + stateless fallback | — |
+| Structured logging | `logger.py` | ✅ Done | Shared logger, used in most modules | Some modules (main.py, voice_processor.py) still use print() |
+| Supabase schema | `supabase_schema.sql` | ✅ Done | Full schema with RLS, triggers | `skill_passports` table referenced in code but missing from schema |
+| FastAPI entrypoint | `main.py` | ✅ Done | 18+ routes, auth, CORS, PII redaction | Rate limiter not wired; `/api/kanban/add` ignores `user_id` from route |
+| Authentication | `main.py` | ✅ Done | Supabase JWT validation, dev fallback | — |
+| Frontend API client | `src/lib/api.ts` | 🔶 Partial | Typed client for most routes | Missing `getNegotiatorStart`, `runABTest` typed wrappers |
+| Frontend landing page | `src/app/page.tsx` | ✅ Done | Polished bento grid layout | — |
+| Frontend login | `src/app/login/page.tsx` | ✅ Done | Real Supabase auth | — |
+| Frontend dashboard | `src/app/dashboard/page.tsx` | 🔶 Partial | Passport fetch present | Agent status cards hardcoded |
+| Frontend interview | `src/app/interview/page.tsx` | ✅ Done | Voice + text, session persistence | — |
+| Frontend resume | `src/app/resume/page.tsx` | ✅ Done | All 4 tabs wired to real API | — |
+| Frontend kanban | `src/app/kanban/page.tsx` | ✅ Done | Drag-drop, rejection modal | — |
+| Frontend challenge | `src/app/challenge/page.tsx` | 🔶 Broken | UI complete | Field name mismatch: uses `description` but backend returns `scenario` |
+| Frontend passport | `src/app/passport/page.tsx` | ❌ Broken | Polished UI with badges | Entirely hardcoded mock data — never calls `getPassport()` |
+| Frontend roadmap | `src/app/roadmap/page.tsx` | 🔶 Partial | `generateRoadmap()` calls API | Missing auth header — returns 401 |
+| Frontend negotiator | `src/app/negotiator/page.tsx` | ✅ Done | Real API calls | — |
+| Frontend outreach | `src/app/outreach/page.tsx` | ✅ Done | Real API call | — |
+| CI/CD | `.github/workflows/ci.yml` | ✅ Done | Backend tests + frontend build | Only runs `verify_fix.py`, not `test_flow.py` |
+| Docker | `Dockerfile`, `docker-compose.yml` | ✅ Done | Both services, env_file wired | — |
+| Pre-commit | `.pre-commit-config.yaml` | ✅ Done | ruff + prettier + hooks | — |
+| Tests | `tests/` | 🔶 Partial | verify_fix.py (real unittest), test_flow.py (integration) | No unit tests for core agents; test_gemini.py/model.py not proper tests |
+| Frontend env example | `frontend/.env.local.example` | ❌ Missing | — | New contributors can't set up frontend without it |
 
 ---
 
@@ -163,236 +177,162 @@ CareerForge/
 
 ### What is fully working
 
-- **`GitHubAuditor.calculate_trust_score()`** in `auditor.py`
-  - Does: Fetches user data + public events, computes weighted trust score (account age, push frequency, repo count), returns verdict dict.
-  - Quality: Good. Graceful `_safe_get` wrapper handles all network errors.
+- **`GitHubAuditor.calculate_trust_score()`** in `auditor.py` (lines 59–85)
+  - Does: Fetches user data + events from GitHub API, calculates a 0–100 trust score based on account age (40pts), recent push events (40pts), and public repo count (20pts), returns structured dict with verdict
+  - Quality: Good — graceful offline handling via `_safe_get`, optional token for rate limit avoidance
 
-- **`GitHubAuditor.fetch_top_repo_context()`** in `auditor.py`
-  - Does: Finds top-starred repo, fetches README + 2 code files (Base64 decoded), truncates to 2000 chars each.
-  - Quality: Good. Smart token management.
+- **`GitHubAuditor.fetch_top_repo_context()`** in `auditor.py` (lines 38–57)
+  - Does: Finds user's top-starred repo, fetches README + 2 code files, truncates to 2000 chars each for token safety
+  - Quality: Good — sensible extension targeting, star-based ranking
 
-- **`lead_interviewer_node()`** in `interviewer.py`
-  - Does: Reads state, builds dynamic system prompt injecting shadow critique, handles empty state for intro message.
-  - Quality: Good. Clear conditional injection logic.
-
-- **`shadow_auditor_node()`** in `shadow_auditor.py`
-  - Does: Analyzes last user message with Gemini, skips if last message is AI, handles missing API key gracefully.
-  - Quality: Good. API fallback is clean.
-
-- **`code_execution_node()`** in `code_sandbox.py`
-  - Does: Regex-extracts code blocks from user messages, executes each via Piston API, appends output as SystemMessage.
-  - Quality: Good. Handles multiple code blocks, combines stdout + stderr.
-
-- **`execute_code()`** in `code_sandbox.py`
-  - Does: POSTs to Piston API with language mapping, parses response, returns combined output string.
-  - Quality: Good.
-
-- **`generate_challenge()`** in `challenge_generator.py`
-  - Does: Structured output generation of `CursedChallenge` Pydantic model with fallback on LLM error.
-  - Quality: Good. Fallback is sensible.
-
-- **`generate_learning_roadmap()`** in `roadmap_generator.py`
-  - Does: Structured output `CareerRoadmap` with weekly milestones and daily tasks including resource links.
-  - Quality: Good. Early return for empty skill_gaps.
-
-- **`start_negotiation_scenario()` / `run_negotiation_turn()`** in `negotiator.py`
-  - Does: Two-phase — stingy HR generates initial offer, then coach audits the user's counter-move, then HR agent responds with potential offer improvement.
-  - Quality: Good. The inner `TurnResult` subclass pattern is clever.
-
-- **`analyze_resume()`** in `resume_parser.py`
-  - Does: Tries OCR first (rasterize → Tesseract), falls back to PyPDF, guards against empty/short text, truncates at 20k chars.
-  - Quality: Good architecture, but the success return type is `str` (LLM response content) while error cases return `dict` — callers must handle both.
-
-- **`DatabaseManager`** in `database.py`
-  - Does: Validates env vars, creates Supabase client only if non-placeholder URL found, logs interactions gracefully skipping on failure.
-  - Quality: Excellent. The `.env.example` placeholder check (`"your-project" not in url`) prevents crashes on unconfigured environments.
-
-- **Supabase schema** in `supabase_schema.sql`
-  - Does: Enables uuid-ossp, creates 4 tables, sets RLS on all, adds correct policies, creates auth trigger for automatic profile creation.
-  - Quality: Production-worthy.
+- **`app_graph` (LangGraph)** in `graph.py`
+  - Does: Compiles a stateful 5-node workflow (shadow_auditor → red_team/lead_interviewer → code_sandbox → burnout_intervention → lead_interviewer) with `MemorySaver` persistence. Thread-keyed state survives across HTTP calls.
+  - Quality: Good architecture — conditional routing, clean node separation
 
 - **`VoiceProcessor.process_audio()`** in `voice_processor.py`
-  - Does: Groq Whisper transcription with technical prompt hint, then confidence/clarity/filler analysis.
-  - Quality: Good. The confidence metric formula is simplistic but functional.
+  - Does: Submits audio bytes to Groq Whisper with a technical vocabulary hint, returns transcribed text + confidence/clarity metrics (filler word count, hedge word detection)
+  - Quality: Works, graceful error fallback; confidence metric is text-based (legitimate limitation noted in roadmap)
+
+- **`generate_challenge()` / `generate_learning_roadmap()` / `analyze_market_demand()`**
+  - All use Groq with `with_structured_output(PydanticModel)` — clean pattern, fallback values on LLM failure, correct structured returns
+
+- **`database.py` — `DatabaseManager`**
+  - Does: Creates Supabase client only when real credentials are provided (checks for placeholder strings), falls back to stateless mode silently — this is a great DX pattern
+  - Quality: Good — fail-safe, singleton, `log_interaction()` doesn't crash the interview on DB failure
+
+- **`supabase_schema.sql`**
+  - Complete: 4 tables, RLS policies on all of them, UUID extension, foreign key cascade on auth.users, automatic profile creation trigger
+  - Quality: Production-worthy
+
+- **Frontend pages: interview, resume, kanban, negotiator, outreach, hunter, landing, login**
+  - All make real API calls through `api.ts`, handle loading/error states, and have polished UI with Framer Motion animations
 
 ### What is partially implemented
 
-#### Burnout Guard — `burnout_guard.py`
-- **What exists:** `burnout_router()` checks `consecutive_failures` from state and routes to intervention at `>= 2`.
-- **What's broken:** `burnout_router` is a routing function — it returns a node name string, not a state dict update. It never writes `consecutive_failures += 1` back to state. Since LangGraph routing functions can't mutate state, and no other node increments the counter, `consecutive_failures` is always 0. Burnout intervention **never triggers**.
-- **What's missing:** A node that wraps the router logic and also updates the state, or moving the counter increment into `code_execution_node`'s return dict.
+#### Burnout Counter — `burnout_guard.py` / `graph.py`
+- **What exists:** `burnout_router()` reads `state.get("consecutive_failures", 0)` and routes to `burnout_intervention` if `failures >= 2`. The intervention node exists and resets the counter to 0.
+- **What's broken:** The counter is read but never written. When code fails, `burnout_router` returns `"retry_prompt"` but doesn't return `{"consecutive_failures": failures + 1}`. LangGraph nodes that route via conditional edges cannot update state — a separate node must do it.
+- **What's missing:** A `track_failure_node` that increments the counter needs to be inserted between `code_sandbox` and `burnout_router`.
 - **Exact fix:**
   ```python
-  # In code_sandbox.py -> code_execution_node(), add to the return dict:
-  def code_execution_node(state: InterviewState):
-      ...
-      if outputs:
-          final_output = "\\n\\n".join(outputs)
-          is_failure = "Error" in final_output or "Traceback" in final_output
-          new_failures = state.get("consecutive_failures", 0) + (1 if is_failure else 0)
-          if not is_failure:
-              new_failures = 0  # reset on success
-          return {
-              "messages": [SystemMessage(content=f"SYSTEM_SANDBOX_OUTPUT:\\n{final_output}")],
-              "code_output": final_output,
-              "consecutive_failures": new_failures
-          }
-      return {}
+  # In burnout_guard.py — add this new node:
+  def track_failure_node(state: InterviewState) -> dict:
+      """Increments consecutive_failures counter when code fails."""
+      output = state.get("code_output", "")
+      is_error = "Traceback" in output or "Error:" in output or "FAIL" in output
+      if is_error:
+          return {"consecutive_failures": state.get("consecutive_failures", 0) + 1}
+      return {"consecutive_failures": 0}  # reset on success
+
+  # In graph.py — change the routing:
+  # BEFORE: code_sandbox → conditional(burnout_router)
+  # AFTER:  code_sandbox → track_failure → conditional(burnout_router)
+  workflow.add_node("track_failure", track_failure_node)
+  workflow.add_edge("code_sandbox", "track_failure")
+  workflow.add_conditional_edges("track_failure", burnout_router, {...})
   ```
 - **Estimated effort:** 30 minutes
 
-#### Skill Passport — `skill_passport.py`
-- **What exists:** Fetches GitHub trust, tries to pull challenge passes and interview logs from DB.
-- **What's broken:** The interview log query is `.eq("session_id", session_id if session_id else "")` — when called from `recruiter_proxy.py` or `networking_agent.py` without a session_id, it passes an empty string and returns zero logs. Score boost from practice never applies.
-- **What's missing:** A user-id-based query instead of session-id-based, since the endpoint has user_id available.
-- **Exact fix:**
-  ```python
-  # Replace the logs query in skill_passport.py with user-based:
-  logs = db_manager.supabase.table("interview_logs") \
-      .select("id") \
-      .eq("user_id", username)  # or pass user_id as parameter
-      .execute()
-  ```
-- **Estimated effort:** 1 hour (requires threading user_id through call chain)
+#### Red Team Verdict State Field — `agent_state.py` / `red_team.py`
+- **What exists:** `red_team_node()` returns `{"red_team_verdict": response.content}`. The node is wired in `graph.py` and runs correctly.
+- **What's broken:** `InterviewState` TypedDict in `agent_state.py` has no `red_team_verdict` field. LangGraph silently discards state updates for unknown fields.
+- **What's missing:** One line in `agent_state.py`.
+- **Exact fix:** Add `red_team_verdict: Optional[str]` to `InterviewState`. Then in `interviewer.py`, read it: `red_verdict = state.get("red_team_verdict", "")` and inject it into the base prompt when it starts with `"RED FLAG:"`.
+- **Estimated effort:** 20 minutes
 
-#### Public Routes — `public_routes.py`
-- **What exists:** Router with `/api/public/profile/{username}` and `/api/public/twin/{username}/ask`.
-- **What's broken:** Profile returns entirely hardcoded data with `random.randint` variation. Digital twin uses `if/elif` keyword matching instead of real LLM.
-- **What's missing:** DB lookup for actual passport data; LLM call for twin responses.
-- **Exact fix:**
-  ```python
-  # In get_public_profile(), replace hardcoded dict with:
-  from skill_passport import get_skill_passport
-  return get_skill_passport(username)
-  
-  # In ask_digital_twin(), replace keyword matching with:
-  from recruiter_proxy import query_digital_twin
-  result = query_digital_twin(username, req.question)
-  return {"reply": result["reply"]}
-  ```
-- **Estimated effort:** 1 hour
+#### Skill Passport DB Table Name Mismatch — `skill_passport.py`
+- **What exists:** `skill_passport.py` queries `challenge_results` table. The Supabase schema defines `challenge_attempts` table.
+- **What's broken:** The query silently returns 0 challenges passed for every user.
+- **Exact fix:** In `skill_passport.py` line ~35, change `"challenge_results"` to `"challenge_attempts"`.
+- **Estimated effort:** 5 minutes
 
-#### Challenge Page Type Mismatch — `frontend/src/app/challenge/page.tsx`
-- **What exists:** UI that calls `/api/challenge/new` and renders challenge fields.
-- **What's broken:** Frontend `Challenge` interface has `description`, `starter_code` fields. Backend `CursedChallenge` model has `scenario`, `broken_code`, `constraint`, `solution_summary`. The mapping is wrong — `challenge.description` and `challenge.starter_code` will be `undefined`.
-- **Exact fix:** Update the frontend interface:
-  ```typescript
-  interface Challenge {
-    title: string;
-    scenario: string;      // was: description
-    broken_code: string;   // was: starter_code
-    constraint: string;
-    test_cases: TestCase[];
-    solution_summary?: string;
-  }
-  // And update all JSX references accordingly
-  ```
-- **Estimated effort:** 30 minutes
+#### Frontend Challenge Page Field Name — `challenge/page.tsx`
+- **What exists:** The challenge UI renders the challenge description.
+- **What's broken:** The frontend reads `challenge.description` but the backend `CursedChallenge` Pydantic model returns `challenge.scenario`. The field renders as `undefined`.
+- **Exact fix:** In `challenge/page.tsx`, replace all occurrences of `challenge.description` with `challenge.scenario`.
+- **Estimated effort:** 10 minutes
+
+#### Frontend Passport Page — `passport/page.tsx`
+- **What exists:** A polished badge-display UI with a hardcoded mock candidate.
+- **What's broken:** `getPassport()` from `api.ts` is never called. All data comes from `setTimeout(() => setData({...hardcoded...}), 800)`.
+- **What's missing:** `useEffect` that calls `getPassport(username)` and maps the real API response (`readiness_score`, `trust_score`, `challenges_passed`, `skill_verdict`, `verification_hash`) to the page's data model.
+- **Estimated effort:** 1 hour (needs a real-to-display mapping layer since badge structure doesn't map 1:1 from the current passport API)
+
+#### Frontend Roadmap Page Auth Header — `roadmap/page.tsx`
+- **What exists:** `generateRoadmap()` makes a real `fetch()` call to `/api/career/roadmap`.
+- **What's broken:** The fetch has no `Authorization` header. The backend route uses `Depends(get_current_user)` which will return 401 for unauthenticated requests.
+- **Exact fix:** Import `getAuthHeaders` from `api.ts` and add `headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) }` to the fetch call.
+- **Estimated effort:** 15 minutes
 
 ### What is completely missing
 
-#### `pypdf` in requirements — critical install failure
-- **Why it's needed:** `resume_parser.py` line 4: `from pypdf import PdfReader`. Without it, `import resume_parser` fails at startup, crashing the entire FastAPI app.
-- **Where it should live:** `backend/requirements.txt`
-- **What it should contain:** `pypdf>=4.0.0`
-- **Estimated effort:** 5 minutes
-
-#### `langchain-community` in requirements
-- **Why it's needed:** `job_fetcher.py` and `demand_analyzer.py` use `from langchain_community.tools import DuckDuckGoSearchRun`.
-- **Where it should live:** `backend/requirements.txt`
-- **What it should contain:** `langchain-community>=0.2.0`
-- **Estimated effort:** 5 minutes
-
-#### `/api/audit/deep/{username}` route
-- **Why it's needed:** `frontend/src/lib/api.ts` `deepAudit()` calls this endpoint. `GitHubAuditor.fetch_top_repo_context()` implements the logic but is never exposed.
-- **Where it should live:** `backend/main.py`
-- **What it should contain:**
-  ```python
-  @app.get("/api/audit/deep/{username}")
-  async def deep_audit_endpoint(username: str):
-      return auditor_agent.fetch_top_repo_context(username)
-  ```
-- **Estimated effort:** 10 minutes
-
-#### `/api/career/demand` route
-- **Why it's needed:** `api.ts` `getMarketDemand()` calls it. `demand_analyzer.py` implements it but is commented out.
-- **Where it should live:** `backend/main.py`
-- **What it should contain:** Uncomment the import and add:
-  ```python
-  from demand_analyzer import analyze_market_demand
-  
-  @app.post("/api/career/demand")
-  async def market_demand_endpoint(request: RoadmapRequest, user_id: str = Depends(get_current_user)):
-      return analyze_market_demand(request.target_role)
-  ```
-- **Estimated effort:** 15 minutes
-
-#### `/api/kanban/reject/{app_id}` route
-- **Why it's needed:** `kanban.py`'s `analyze_rejection()` is sophisticated agentic logic (creates Phoenix recovery tasks) but is inaccessible.
-- **Where it should live:** `backend/main.py`
-- **What it should contain:**
-  ```python
-  @app.post("/api/kanban/reject/{app_id}")
-  async def reject_application(app_id: str, feedback: str = "", user_id: str = Depends(get_current_user)):
-      from kanban import analyze_rejection
-      return analyze_rejection(app_id, feedback)
-  ```
-- **Estimated effort:** 15 minutes
-
-#### Frontend environment file
-- **Why it's needed:** `src/lib/api.ts` reads `process.env.NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Without documentation, new developers can't get the frontend running.
+#### `frontend/.env.local.example`
+- **Why it's needed:** Without it, new contributors don't know what environment variables the frontend needs. `npm run dev` silently uses empty strings for Supabase keys and `localhost:8000` for the API base — but there's nothing to copy/fill in.
 - **Where it should live:** `frontend/.env.local.example`
 - **What it should contain:**
-  ```
+  ```bash
+  # Supabase (optional — auth won't work without these)
   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+
+  # Backend URL
   NEXT_PUBLIC_API_BASE=http://localhost:8000/api
   ```
 - **Estimated effort:** 5 minutes
 
-#### `NEXT_PUBLIC_API_BASE` environment variable wiring
-- **Why it's needed:** `API_BASE` in `api.ts` is hardcoded to `http://localhost:8000/api`. Deploying to Vercel or any other host will break all API calls.
-- **Where it should live:** `frontend/src/lib/api.ts` line 8
-- **Exact fix:**
-  ```typescript
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
+#### `skill_passports` table in Supabase schema
+- **Why it's needed:** `skill_passport.py` calls `db_manager.supabase.table("skill_passports").upsert(...)`. This table doesn't exist in `supabase_schema.sql`. The upsert fails silently (caught by `except`), but passport data is never persisted.
+- **Where it should live:** `backend/supabase_schema.sql`
+- **What it should contain:**
+  ```sql
+  create table public.skill_passports (
+    id uuid default uuid_generate_v4() primary key,
+    user_id text not null unique,
+    readiness_score int,
+    trust_score int,
+    challenges_passed int,
+    interview_sessions int,
+    skill_verdict text,
+    verification_hash text,
+    generated_at timestamptz default now()
+  );
+  alter table public.skill_passports enable row level security;
+  create policy "Public passports are viewable by everyone"
+    on public.skill_passports for select using (true);
+  create policy "System can upsert passports"
+    on public.skill_passports for all using (true);
   ```
-- **Estimated effort:** 5 minutes
+- **Estimated effort:** 15 minutes
 
-#### LICENSE file
-- **Why it's needed:** README badge says MIT. Without a LICENSE file, the repo has no legal open-source standing.
-- **Where it should live:** `LICENSE` (root)
-- **Estimated effort:** 5 minutes
+#### Rate limiter wiring in `main.py`
+- **Why it's needed:** `rate_limiter.py` is fully implemented and documented, but no route in `main.py` uses it. The public `/api/audit/{username}` route makes GitHub API calls — without rate limiting it can exhaust the GitHub token quota in minutes.
+- **Where it should live:** `backend/main.py` — add `Depends(public_rate_limit)` to `/api/audit/{username}` and `Depends(llm_rate_limit)` to `/api/challenge/new`, `/api/career/roadmap`, `/api/career/demand`.
+- **Estimated effort:** 20 minutes
 
 ### Bugs and crashes
 
 | Location | Issue | Fix |
 |----------|-------|-----|
-| `requirements.txt:last line` | `pandas===` — syntax error, breaks `pip install -r requirements.txt` entirely | Change to `pandas` or `pandas>=2.0.0` |
-| `requirements.txt` | `pymupdf` listed but code uses `pypdf` (`PdfReader`). Both refer to different packages. At startup, `from pypdf import PdfReader` throws `ModuleNotFoundError`, crashing FastAPI | Add `pypdf>=4.0.0` to requirements |
-| `requirements.txt` | `langchain-community` missing. `job_fetcher.py:6` `from langchain_community.tools import DuckDuckGoSearchRun` crashes at import | Add `langchain-community>=0.2.0` |
-| `burnout_guard.py:burnout_router()` | `consecutive_failures` never incremented, burnout never triggers | Move counter increment into `code_execution_node` return dict (see fix above) |
-| `test_flow.py:test_dashboard_pulse()` | Calls `GET /api/career/market-pulse?role=...` which doesn't exist. Will always fail with 404 | Fix test to call POST `/api/career/demand` or re-enable demand_analyzer route |
-| `test_flow.py:test_recruiter_proxy()` | Posts `{"question": ...}` missing required `username` field, returns 422 Unprocessable Entity | Add `"username": "test-user"` to payload |
-| `frontend/src/lib/api.ts:deepAudit()` | Calls `/api/audit/deep/{username}` — route doesn't exist in `main.py` | Add route (see above) |
-| `frontend/src/lib/api.ts:getMarketDemand()` | Calls `/api/career/demand` — route doesn't exist | Uncomment demand_analyzer and add route |
-| `challenge/page.tsx` | Renders `challenge.description` and `challenge.starter_code` which are `undefined` — backend sends `scenario` and `broken_code` | Update frontend interface field names |
-| `roadmap/page.tsx` | `generateRoadmap()` is a local function using `setTimeout` mock data — never calls backend `/api/career/roadmap` | Replace with real `fetch` call to backend |
-| `dashboard/page.tsx` | All briefing data comes from `setTimeout` mock — no `/api/dashboard/status` endpoint exists | Either wire to passport/audit endpoint or add dashboard summary endpoint |
-| `Navbar.tsx:userScore` | Hardcoded `const userScore = 78` | Wire to real auth state / passport score |
-| `skill_passport.py:120` | Interview log query `.eq("session_id", "")` returns 0 logs when no session_id — score never improves from practice | Use user_id-based query |
-| `red_team.py:red_team_node()` | Returns `{"red_team_verdict": ...}` but field not in `InterviewState` — would crash if wired | Add field to InterviewState or wire differently |
-| `main.py:verify_challenge` | `test['input_val']` string interpolation in f-string inside a loop — if `input_val` contains quotes or braces, the generated code will have syntax errors | Sanitize or use `repr()` |
+| `resume_tailor.py:9` | `from resume_parser import extract_text_with_ocr` — function doesn't exist | Change to `from resume_parser import _extract_text as extract_text_with_ocr` or add a public alias `extract_text_with_ocr = _extract_text` to `resume_parser.py` |
+| `background_worker.py:30` | `from job_fetcher import fetch_jobs` — function is named `hunt_opportunities` | Change to `from job_fetcher import hunt_opportunities` and update the call on line 51 |
+| `burnout_guard.py` | `consecutive_failures` never incremented — burnout protection always dormant | Add `track_failure_node` (see Phase 1 fix above) |
+| `agent_state.py` | Missing `red_team_verdict: Optional[str]` field | Add the field; LangGraph silently drops updates to unknown keys |
+| `skill_passport.py:~35` | Queries `challenge_results` table; schema defines `challenge_attempts` | Change table name in query |
+| `main.py` `/api/kanban/add` route | Calls `db_manager.supabase.table("applications").insert(app_dict)` but doesn't pass `user_id` from the authenticated route | The `kanban.py` `add_application()` function accepts `user_id` correctly; the `main.py` route needs to pass it: `kanban.add_application(app, user_id)` instead of the inline insert |
+| `challenge/page.tsx` | Reads `challenge.description` — field is `scenario` in backend model | Replace `description` with `scenario` |
+| `passport/page.tsx` | Entirely hardcoded mock data, `getPassport()` never called | Replace `setTimeout` mock with real API call |
+| `roadmap/page.tsx` | Missing auth header on fetch — returns 401 | Add `...(await getAuthHeaders())` to fetch headers |
+| `supabase_schema.sql` | Missing `skill_passports` table — passport upsert silently fails | Add table definition (see above) |
+| `frontend/` | Missing `.env.local.example` | Create the file |
 
 ### Code quality issues
 
-- **No type hints on return types in `main.py`**: Route functions return `dict` or `Any` implicitly. Pydantic response models would improve documentation and catch bugs.
-- **`main.py` hardcodes `"dev-user-id"` fallback**: In the voice endpoint, `user_id = "dev-user-id"` before the auth check. If auth fails silently (exception swallowed), all data gets attributed to the wrong user.
-- **`print()` everywhere instead of `logging`**: Every module uses raw `print()`. This makes log filtering in production impossible.
-- **`code_sandbox.py` regex is fragile**: The pattern `r"```(\w+)\s*\n(.*?)```"` with `re.DOTALL` will incorrectly capture everything between the first opening fence and the last closing fence if a message contains multiple unrelated code blocks.
-- **`demand_analyzer.py` hardcoded years**: `"job market trends 2024 2025"` — will become stale. Should use `datetime.now().year`.
-- **No rate limiting on endpoints**: The `/api/audit/{username}` endpoint is unauthenticated and makes GitHub API calls — open to abuse.
-- **`kanban.py` `add_application` inserts without `user_id`**: The function takes `Application` (no user_id) and inserts to DB. If the Supabase table requires `user_id` (it does per schema), this will fail for non-null constraint.
+- **Mixed print() and logger usage** in `main.py`, `voice_processor.py`, `negotiator.py`: These modules were written before `logger.py` was added and still use `print()`. Not a crash, but inconsistent and invisible in production log aggregators.
+- **`numpy` and `pandas` in `requirements.txt`** with no usage in any backend file: These are large dependencies (adds ~200MB to Docker image) that appear to be left from an earlier version. Should be removed.
+- **No timeout on `requests.get` in `database.py`**: The Supabase health check has no timeout. On a slow network this could block server startup indefinitely.
+- **`verify_challenge` in `main.py` uses `repr()` on test case values**: `safe_input = repr(test['input_val'])` — this works for simple Python types but will produce unparseable output for complex objects or non-Python languages.
+- **`recruiter_proxy.py` accesses `passport.get("verified_skills", [])` and `passport.get("github_trust_score", 0)`**: These keys don't exist in `skill_passport.py`'s return dict (actual keys are `trust_score` and there's no `verified_skills` list). The digital twin will always claim zero verified skills.
+- **`Navbar.tsx` imports `framer-motion`**: `AnimatePresence` and `motion` are used in `Navbar.tsx` but `framer-motion` is not in `package.json`'s `dependencies`. It works because it's a transitive dependency, but this is fragile.
 
 ---
 
@@ -400,419 +340,284 @@ CareerForge/
 
 ### Phase 1 — Make it actually run (critical, do first)
 
-1. **Fix `requirements.txt`**
-   - File: `backend/requirements.txt`
-   - Action: Edit
-   - What to write: Replace the entire file with a clean, pinned version (see Section 10). Change `pandas===` to `pandas>=2.0.0`, add `pypdf>=4.0.0`, add `langchain-community>=0.2.0`, add `google-generativeai>=0.8.0`, remove duplicate/conflicting `pymupdf`.
-   - Why: Without this, `pip install -r requirements.txt` fails before any code runs.
+1. **Fix `resume_tailor.py` import crash**
+   - File: `backend/resume_parser.py`
+   - Action: Add one line at the bottom of the file: `extract_text_with_ocr = _extract_text`
+   - Why: `resume_tailor.py` and it import this name; without it the FastAPI server crashes on startup before serving any request
 
-2. **Fix the burnout counter increment**
-   - File: `backend/code_sandbox.py`
-   - Action: Edit `code_execution_node()` to return `consecutive_failures` state update (see exact fix in Section 4).
-   - Why: The most architecturally interesting safety feature is completely dormant without this.
+2. **Fix `background_worker.py` import crash**
+   - File: `backend/background_worker.py`, line 30
+   - Action: Change `from job_fetcher import fetch_jobs` → `from job_fetcher import hunt_opportunities as fetch_jobs`
+   - Why: Server startup ImportError; background worker is useless until this resolves
 
-3. **Wire `red_team.py` or remove it**
-   - File: `backend/agent_state.py`, `backend/graph.py`
-   - Action: Either add `red_team_verdict: Optional[str]` to `InterviewState` and import/add the node to the graph between `shadow_auditor` and `code_sandbox`, or delete `red_team.py` to avoid confusion.
-   - Why: Dead code in the graph module creates confusion and wastes a genuinely good feature.
+3. **Fix burnout counter — add `track_failure_node`**
+   - File: `backend/burnout_guard.py` — add the `track_failure_node` function as described in Section 4
+   - File: `backend/graph.py` — replace the direct `code_sandbox → burnout_router` edge with `code_sandbox → track_failure → burnout_router`
+   - Why: The burnout intervention is the most distinctive feature of the interview engine; it's dead code until this is fixed
 
-4. **Uncomment `demand_analyzer` import and add missing routes**
-   - File: `backend/main.py`
-   - Action: Uncomment `from demand_analyzer import analyze_market_demand`. Add the three missing routes: `/api/audit/deep/{username}`, `/api/career/demand`, `/api/kanban/reject/{app_id}`.
-   - Why: Frontend calls these; failing silently with 404s breaks user-facing features.
+4. **Add `red_team_verdict` to InterviewState**
+   - File: `backend/agent_state.py`
+   - Action: Add `red_team_verdict: Optional[str]` to the `InterviewState` TypedDict
+   - File: `backend/interviewer.py` — read `state.get("red_team_verdict", "")` and inject `"RED FLAG:"` verdicts into the interviewer base prompt
+   - Why: Red team output is silently discarded without this; it's already wired in the graph
 
-5. **Fix `public_routes.py` to read real data**
-   - File: `backend/public_routes.py`
-   - Action: Replace hardcoded return dict with `get_skill_passport(username)` call in `get_public_profile()`, replace keyword-matching twin with `query_digital_twin()` call.
-   - Why: The candidate public profile page (`/candidate/[username]`) is a key recruiter-facing feature and currently shows fake static data.
+5. **Fix Skill Passport table name**
+   - File: `backend/skill_passport.py`, line ~35
+   - Action: Change `"challenge_results"` → `"challenge_attempts"`
+   - File: `backend/supabase_schema.sql` — add `skill_passports` table definition (see Section 6 below)
+   - Why: Challenges passed always reads as 0; passport score is always artificially low
 
-6. **Create `frontend/.env.local.example`**
+6. **Fix recruiter_proxy key names**
+   - File: `backend/recruiter_proxy.py`, lines where `passport.get("verified_skills")` and `passport.get("github_trust_score")` are called
+   - Action: Change `"verified_skills"` → `"skill_verdict"` (or build a skills list from audit data); change `"github_trust_score"` → `"trust_score"`
+   - Why: Digital Twin always claims zero evidence; defeating the entire point of the feature
+
+7. **Create `frontend/.env.local.example`**
    - File: `frontend/.env.local.example`
-   - Action: Create with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_BASE` entries.
-   - Why: Frontend is completely unconfigurable from docs without this.
+   - Action: Create with 3 variables (see Section 6)
+   - Why: Every new contributor will fail `npm run dev` without it
 
-7. **Replace hardcoded API_BASE in `api.ts`**
-   - File: `frontend/src/lib/api.ts`
-   - Action: `const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";`
-   - Why: Production deployment to Vercel + any backend host breaks without this.
-
-8. **Fix `challenge/page.tsx` type mismatch**
+8. **Fix frontend challenge page field name**
    - File: `frontend/src/app/challenge/page.tsx`
-   - Action: Update `Challenge` interface to use `scenario`, `broken_code`, `constraint` field names. Update all JSX renders.
-   - Why: Challenge page renders blank fields from the actual API response.
+   - Action: Replace all `challenge.description` with `challenge.scenario`
+   - Why: The challenge description renders as `undefined` to every user
 
-9. **Add `LICENSE` file**
-   - File: `LICENSE` (root)
-   - Action: Create with MIT license text, year 2025, author name.
-   - Why: Prerequisite for open-source credibility; README already claims MIT.
+9. **Fix frontend passport page — connect to real API**
+   - File: `frontend/src/app/passport/page.tsx`
+   - Action: Remove the `setTimeout` mock block; add `useEffect` that calls `getPassport(username)` after fetching the username from Supabase session
+   - Why: The Skill Passport is the project's core value proposition — it must display real verified data
 
-10. **Add `GITHUB_TOKEN` to `.env.example`**
-    - File: `backend/.env.example`
-    - Action: Add `GITHUB_TOKEN=ghp_...  # Optional: prevents GitHub API rate limiting`
-    - Why: Without it, the GitHub auditor hits rate limits quickly in any real demo.
+10. **Fix roadmap page auth header**
+    - File: `frontend/src/app/roadmap/page.tsx`, inside `generateRoadmap()`
+    - Action: Import `getAuthHeaders` from `@/lib/api`; add `headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) }` to the fetch
+    - Why: The route requires auth; without the header every roadmap request returns 401
+
+11. **Wire rate limiter to public routes**
+    - File: `backend/main.py`
+    - Action: `from rate_limiter import public_rate_limit, llm_rate_limit`; add `_: None = Depends(public_rate_limit)` to `/api/audit/{username}` and `Depends(llm_rate_limit)` to `/api/challenge/new`, `/api/career/roadmap`, `/api/career/demand`
+    - Why: The `rate_limiter.py` module exists specifically for this; without wiring, free-tier GitHub token quota can be exhausted by a single script
 
 ### Phase 2 — Make it impressive (do second)
 
-1. **Connect `roadmap/page.tsx` to the real backend**
-   - File: `frontend/src/app/roadmap/page.tsx`
-   - What to change: Replace the mock `generateRoadmap` function with a real `fetch` call to `POST /api/career/roadmap` with skill gaps and target role. The backend returns a `CareerRoadmap` with weekly milestones — render these as the skill tree nodes.
-   - Impact: Unlocks the full Ghost Tech Lead feature for users.
+1. **Commit entropy analysis in GitHub Auditor**
+   - File: `backend/auditor.py`
+   - What to add: A `calculate_commit_entropy()` method that fetches recent commit diffs via the GitHub API and computes character-level entropy (Shannon entropy of diff content). Low entropy = repetitive AI-generated patterns.
+   - Impact: Makes the "fights AI with AI" claim technically credible, not just marketing
 
-2. **Connect `dashboard/page.tsx` to real data**
-   - File: `frontend/src/app/dashboard/page.tsx`
-   - What to change: Replace `setTimeout` mock with a call to `GET /api/passport/{username}` (after auth) to get real readiness score and recent achievements. Show actual Kanban summary from `GET /api/kanban/list`.
-   - Impact: Dashboard becomes a real command center instead of a static mockup.
+2. **Voice stress analysis via librosa audio features**
+   - File: `backend/voice_processor.py`
+   - What to add: After Whisper transcription, use `librosa` to analyze the raw audio bytes: extract pitch variance (`librosa.yin`), pause duration histogram, and speech rate. These are real stress signals; current confidence score is text-only.
+   - Impact: Differentiates CareerForge's interview engine from any LLM chatbot wrapper
 
-3. **Wire `Navbar.tsx` to auth state**
-   - File: `frontend/src/components/Navbar.tsx`
-   - What to change: Import `supabase` client, add `useEffect` to call `supabase.auth.getSession()`, fetch passport score for the logged-in user. Display actual score.
-   - Impact: The score displayed is no longer always "78".
+3. **Shareable Skill Passport URL — wire `/candidate/{username}` to real data**
+   - File: `frontend/src/app/candidate/[username]/page.tsx`
+   - What to add: The route exists and makes a fetch call; verify it calls the public passport endpoint and add a "Copy Link" button + social share meta tags
+   - Impact: Candidates can link their Skill Passport from their resume — this is the viral distribution mechanism
 
-4. **Replace `print()` with `logging` throughout backend**
-   - Files: All `backend/*.py`
-   - What to change: Add `import logging; logger = logging.getLogger(__name__)` to each module, replace all `print()` with `logger.info()` / `logger.error()`.
-   - Impact: Production observability — log filtering, levels, structured output.
+4. **SQLite/Postgres persistent checkpointer for LangGraph**
+   - File: `backend/graph.py`
+   - What to change: Replace `MemorySaver()` with `SqliteSaver.from_conn_string("checkpoints.db")` (or a Supabase-backed checkpointer). `MemorySaver` loses all interview state on server restart.
+   - Impact: Interview sessions survive server restarts; essential for production
 
-5. **Add `kanban.py:analyze_rejection` to the Kanban frontend**
-   - File: `frontend/src/app/kanban/page.tsx`
-   - What to change: The UI already has a rejection modal with `feedback` state. Wire the "Confirm Rejection" button to call `POST /api/kanban/reject/{app_id}` and display the returned `phoenix_task_title` and `recovery_plan`.
-   - Impact: The agentic rejection recovery loop becomes user-visible — this is a genuinely impressive feature.
+5. **Remove unused dependencies from requirements.txt**
+   - File: `backend/requirements.txt`
+   - Action: Remove `numpy>=2.0.0` and `pandas>=2.2.0` — neither is imported anywhere in the backend. Reduces Docker image by ~200MB and pip install time significantly.
+   - Impact: Faster CI, faster Docker builds, smaller image
 
-6. **Add `background_worker.py` startup instruction**
-   - File: `backend/background_worker.py`, `Readme.md`
-   - What to change: Add a `Procfile` or document that `python background_worker.py` runs as a separate process. Optionally wrap in a simple schedule using `schedule` library.
-   - Impact: The "agents work while you sleep" pitch requires this to actually run.
-
-7. **Fix the verify_challenge f-string injection vulnerability**
-   - File: `backend/main.py`, `verify_challenge` function
-   - What to change: Replace raw string interpolation with `repr(test['input_val'])` and `repr(test['expected_output'])` to prevent code injection through test case values.
-   - Impact: Security fix + prevents syntax errors in generated test harness.
+6. **Background worker as a Procfile entry**
+   - File: `Procfile` (new file at repo root)
+   - What to add: `worker: cd backend && python background_worker.py`
+   - Impact: Railway/Heroku can run it as a second dyno; makes the autonomous job-hunt loop actually run in deployment
 
 ### Phase 3 — Make it star-worthy (do last)
 
-1. **Add demo GIF or live demo link to README**
-   - What to do: Record a 60-second Loom or screen capture showing: upload resume → get trust score → run challenge → see Skill Passport. Embed in README using `![Demo](demo.gif)`.
-   - Why it matters for star-worthiness: Without a demo, no one knows it works. This is the single highest-ROI addition.
+1. **Record and embed a demo GIF**
+   - What to do: Record a 60-second screen capture: upload resume → GitHub audit → generate cursed challenge → fix it → view Skill Passport
+   - Where: `assets/demo.gif` — embed at the top of `Readme.md` where the `<!-- INSERT DEMO GIF HERE -->` comment currently sits
+   - Why it matters for starworthiness: The README already has this placeholder. Filling it converts a "looks interesting" repo into a "I need to try this" repo in under 10 seconds
 
-2. **Add Dockerfile + docker-compose**
-   - What to do: Create `backend/Dockerfile` (Python 3.11 slim, install deps, expose 8000, `CMD uvicorn main:app`). Create root `docker-compose.yml` with `backend` and `frontend` services.
-   - Where: Root `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`
-   - Why it matters: "One command to run" is a requirement for a forkable project.
+2. **Publish GitHub audit benchmark results**
+   - What to do: Run `auditor.calculate_trust_score()` against 20 known AI-slop accounts (repos full of GPT-generated code) and 20 genuine contributors; publish a confusion matrix in the README
+   - Where: New `## Benchmark` section in `Readme.md`
+   - Why it matters for starworthiness: The entire premise of the project rests on the auditor working — showing that it does with real numbers is the difference between a claim and a proof
 
-3. **Add GitHub Actions CI**
-   - What to do: Create `.github/workflows/ci.yml` that runs `pip install -r requirements.txt`, `python -m pytest backend/tests/`, and `npm run build` on every PR.
-   - Where: `.github/workflows/ci.yml`
-   - Why it matters: The "build passing" badge currently points to nothing. A real CI makes it credible.
+3. **Add architecture diagram as an image (not Mermaid)**
+   - What to do: Export the Mermaid diagram as an SVG/PNG; also create a second simplified "data flow" diagram showing the 5 engines in sequence
+   - Where: `assets/architecture.png` embedded in README after the Mermaid block
+   - Why it matters for starworthiness: GitHub renders Mermaid but many README viewers/scrapers don't; a static image ensures the architecture is always visible
 
-4. **Write a proper setup guide in README**
-   - What to do: Add a "Getting Started" section with exact commands: clone, `cp .env.example .env`, edit API keys, `pip install`, `uvicorn main:app --reload`, `npm install && npm run dev`. Include expected output.
-   - Where: `Readme.md`
-   - Why it matters: Current README has architecture but no working setup steps.
+4. **Interactive demo via Gradio or hosted backend**
+   - What to do: Deploy backend to Railway (free tier, `railway.toml` already exists); add the live URL to README badges and Quick Start
+   - Where: Update `Readme.md` with `[![Live Demo](badge)](https://your-railway-url)` and "Try it without installing" section
+   - Why it matters for starworthiness: Eliminates the friction of "I'd have to set this up to try it"
 
-5. **Add results/benchmarks section to README**
-   - What to do: Run the auditor against a real GitHub user, screenshot the Skill Passport, show a real generated challenge + its solution. Add a "Results" section with actual outputs.
-   - Where: `Readme.md`, `assets/` folder
-   - Why it matters: A stranger needs to see that this produces real, interesting output.
-
-6. **Add pre-commit hooks**
-   - What to do: `pip install pre-commit`, create `.pre-commit-config.yaml` with `ruff` (Python lint), `mypy` (type check), and `prettier` (TypeScript format).
-   - Where: `.pre-commit-config.yaml`
-   - Why it matters: Signals code hygiene to technical evaluators.
-
-7. **Create `CONTRIBUTING.md`**
-   - What to do: Document the project structure, how to add a new agent (implement node, add to InterviewState if needed, wire into graph), and how to add a new frontend page.
-   - Why it matters: Separates "someone's project" from "an open-source project".
+5. **Add type hints and docstrings to remaining functions**
+   - What to do: `main.py` route handlers and `voice_processor.py` methods need return type hints; several `agent_state.py` fields need inline comments explaining their purpose
+   - Where: `backend/main.py`, `backend/voice_processor.py`
+   - Why it matters for starworthiness: Open source contributors evaluate code quality at a glance; typed, documented code signals a serious project
 
 ---
 
 ## 6. Files to create from scratch
 
-### `LICENSE`
-**Purpose:** Legal open-source standing (currently claimed in README badge but missing)
-```
-MIT License
-
-Copyright (c) 2025 Mannava-Daasaradhi
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction...
-[standard MIT text]
-```
-
 ### `frontend/.env.local.example`
-**Purpose:** Document required frontend environment variables for new developers.
+**Purpose:** Tells new contributors what environment variables the frontend needs
+
 ```bash
-# Supabase (Frontend Auth)
-# Get from: https://supabase.com/dashboard/project/<project>/settings/api
+# ─────────────────────────────────────────────────
+# CareerForge — Frontend Environment Variables
+# Copy this file to .env.local and fill in your keys
+# ─────────────────────────────────────────────────
+
+# ── Backend URL ─────────────────────────────────────
+# Local development:
+NEXT_PUBLIC_API_BASE=http://localhost:8000/api
+# Production (Railway, etc.):
+# NEXT_PUBLIC_API_BASE=https://your-railway-app.railway.app/api
+
+# ── Supabase (optional — auth won't work without these) ──
+# Find at: https://supabase.com/dashboard/project/<project>/settings/api
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-
-# Backend API (change for production deployment)
-NEXT_PUBLIC_API_BASE=http://localhost:8000/api
 ```
 
-### `backend/Dockerfile`
-**Purpose:** Containerize backend for one-command deployment.
-```dockerfile
-FROM python:3.11-slim
+---
 
-# Install system deps for OCR (tesseract) and PDF processing (poppler)
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
+### `Procfile` (repo root)
+**Purpose:** Enables Railway/Heroku to run the background worker as a separate process alongside the web server
 
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
-
-### `docker-compose.yml`
-**Purpose:** Single-command full-stack startup.
-```yaml
-version: "3.8"
-
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./backend/.env
-    volumes:
-      - ./backend:/app
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_BASE=http://localhost:8000/api
-    env_file:
-      - ./frontend/.env.local
-    depends_on:
-      - backend
-```
-
-### `.github/workflows/ci.yml`
-**Purpose:** Real CI to back the "build passing" badge.
-```yaml
-name: CI
-
-on: [push, pull_request]
-
-jobs:
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install deps
-        run: pip install -r backend/requirements.txt
-      - name: Run tests
-        working-directory: backend
-        run: python -m pytest tests/verify_fix.py -v
-
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Install deps
-        working-directory: frontend
-        run: npm ci
-      - name: Build
-        working-directory: frontend
-        run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
-```
-
-### `backend/logger.py`
-**Purpose:** Shared logger configuration to replace all `print()` calls.
-```python
-import logging
-import sys
-
-def get_logger(name: str) -> logging.Logger:
-    """Returns a configured logger for the given module name."""
-    logger = logging.getLogger(name)
-    
-    if not logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(logging.Formatter(
-            "%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        ))
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-    
-    return logger
-
-# Usage in any module:
-# from logger import get_logger
-# logger = get_logger(__name__)
-# logger.info("Processing resume...")
+web: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+worker: cd backend && python background_worker.py
 ```
 
 ---
 
 ## 7. Files to modify
 
-### `backend/requirements.txt`
-
+### `backend/resume_parser.py`
 | Location | Change type | What to do |
 |----------|-------------|------------|
-| `pandas===` (last line) | Fix bug | Change to `pandas>=2.0.0` |
-| After `pymupdf` | Clarify | Add comment: `# Note: pymupdf is fitz, NOT used in resume_parser.py` or remove if unused |
-| After `pymupdf` | Add dependency | Add `pypdf>=4.0.0` |
-| After `langchain-google-genai` | Add dependency | Add `langchain-community>=0.2.0` |
-| After `langchain-community` | Add dependency | Add `google-generativeai>=0.8.0` |
-| After `requests` | Add dependency | Add `duckduckgo-search>=6.0.0` (the underlying package for DuckDuckGoSearchRun) |
+| End of file, after all function definitions | Add alias | Add `extract_text_with_ocr = _extract_text` — this is the public name that `resume_tailor.py` and `background_worker.py` import |
 
-### `backend/main.py`
-
+### `backend/background_worker.py`
 | Location | Change type | What to do |
 |----------|-------------|------------|
-| Line 27 (commented out import) | Fix | Uncomment `from demand_analyzer import analyze_market_demand` |
-| After `/api/audit/{username}` route | Add feature | Add `GET /api/audit/deep/{username}` route calling `auditor_agent.fetch_top_repo_context(username)` |
-| After `/api/career/hunt` | Add feature | Add `POST /api/career/demand` route with a Pydantic model `DemandRequest(role: str, location: str = "Remote")` calling `analyze_market_demand()` |
-| After `/api/kanban/update` | Add feature | Add `POST /api/kanban/reject/{app_id}` route calling `analyze_rejection(app_id, feedback)` |
-| `voice_chat_endpoint`, line with `user_id = "dev-user-id"` | Fix bug | Move this fallback *inside* the `if not db_manager.enabled` branch to prevent silent auth bypass |
-
-### `backend/burnout_guard.py` / `backend/code_sandbox.py`
-
-| Location | Change type | What to do |
-|----------|-------------|------------|
-| `code_execution_node()` return statement | Fix bug | Return `consecutive_failures` state update as described in Section 4. Track success (reset to 0) and failure (increment). Also add `code_output` to the return dict so `burnout_router` can read it via state instead of reconstructing. |
+| Line 30 | Fix import | Change `from job_fetcher import fetch_jobs` → `from job_fetcher import hunt_opportunities as fetch_jobs` |
 
 ### `backend/agent_state.py`
-
 | Location | Change type | What to do |
 |----------|-------------|------------|
-| After `is_burnout_risk: bool` | Add field | Add `red_team_verdict: Optional[str]` to enable wiring in `red_team.py` |
+| Inside `InterviewState` TypedDict, after `is_burnout_risk` | Add field | Add `red_team_verdict: Optional[str]` |
 
-### `backend/public_routes.py`
-
+### `backend/burnout_guard.py`
 | Location | Change type | What to do |
 |----------|-------------|------------|
-| `get_public_profile()` return dict | Replace | Import and call `get_skill_passport(username)` |
-| `ask_digital_twin()` keyword matching | Replace | Import and call `query_digital_twin(username, req.question)` |
+| After `reset_failures()` function | Add function | Add `track_failure_node(state)` that reads `code_output`, increments counter on error, resets on success |
 
-### `backend/.env.example`
-
+### `backend/graph.py`
 | Location | Change type | What to do |
 |----------|-------------|------------|
-| After `PISTON_API_URL` | Add entry | `GITHUB_TOKEN=ghp_...  # Optional: prevents rate limiting on GitHub API` |
+| Import block | Add import | `from burnout_guard import track_failure_node` |
+| After `workflow.add_node("burnout_intervention", ...)` | Add node | `workflow.add_node("track_failure", track_failure_node)` |
+| `workflow.add_conditional_edges("code_sandbox", burnout_router, {...})` | Replace | Change to: `workflow.add_edge("code_sandbox", "track_failure")` then `workflow.add_conditional_edges("track_failure", burnout_router, {...})` |
 
-### `frontend/src/lib/api.ts`
-
+### `backend/skill_passport.py`
 | Location | Change type | What to do |
 |----------|-------------|------------|
-| `const API_BASE = "http://localhost:8000/api"` | Fix | `const API_BASE = process.env.NEXT_PUBLIC_API_BASE \|\| "http://localhost:8000/api"` |
+| Line ~35, inside challenges query | Fix table name | Change `"challenge_results"` → `"challenge_attempts"` |
+
+### `backend/recruiter_proxy.py`
+| Location | Change type | What to do |
+|----------|-------------|------------|
+| Line where `passport.get("verified_skills", [])` is called | Fix key | Change to `passport.get("skill_verdict", "No verdict yet")` and remove the top_skills slicing; or build skills list from a separate audit call |
+| Line where `passport.get("github_trust_score", 0)` is called | Fix key | Change to `passport.get("trust_score", 0)` |
+
+### `backend/supabase_schema.sql`
+| Location | Change type | What to do |
+|----------|-------------|------------|
+| After `challenge_attempts` table | Add table | Add `skill_passports` table definition with `user_id`, `readiness_score`, `trust_score`, `challenges_passed`, `interview_sessions`, `skill_verdict`, `verification_hash`, `generated_at` fields + RLS policies |
+
+### `backend/main.py`
+| Location | Change type | What to do |
+|----------|-------------|------------|
+| Import block | Add import | `from rate_limiter import public_rate_limit, llm_rate_limit` |
+| `/api/audit/{username}` route signature | Add dependency | Add `_: None = Depends(public_rate_limit)` parameter |
+| `/api/challenge/new` route signature | Add dependency | Add `_: None = Depends(llm_rate_limit)` parameter |
+| `/api/kanban/add` route body | Fix bug | Replace inline `db_manager.supabase.table("applications").insert(app_dict)` with `kanban.add_application(app, user_id)` so `user_id` is passed |
+
+### `backend/requirements.txt`
+| Location | Change type | What to do |
+|----------|-------------|------------|
+| Lines with numpy and pandas | Remove | Delete `numpy>=2.0.0` and `pandas>=2.2.0` — neither is imported in any backend file |
 
 ### `frontend/src/app/challenge/page.tsx`
-
 | Location | Change type | What to do |
 |----------|-------------|------------|
-| `Challenge` interface | Fix bug | Rename `description` → `scenario`, `starter_code` → `broken_code`, add `constraint: string` field |
-| All JSX rendering `challenge.description` / `challenge.starter_code` | Fix bug | Update to use new field names |
+| All occurrences of `challenge.description` | Fix field name | Replace with `challenge.scenario` to match backend `CursedChallenge` Pydantic model |
+
+### `frontend/src/app/passport/page.tsx`
+| Location | Change type | What to do |
+|----------|-------------|------------|
+| `useEffect` with `setTimeout` mock | Replace | Import `getPassport` from `@/lib/api`; fetch Supabase session username; call `getPassport(username)` and map response keys to the page's `PassportData` interface |
 
 ### `frontend/src/app/roadmap/page.tsx`
-
 | Location | Change type | What to do |
 |----------|-------------|------------|
-| `generateRoadmap()` local function | Replace | Real API call to `POST /api/career/roadmap` with skill gaps state. Parse `CareerRoadmap` response into `SkillNode` array. |
-| Static `mockNodes` array | Delete | Remove once real API is wired |
-
-### `frontend/src/app/dashboard/page.tsx`
-
-| Location | Change type | What to do |
-|----------|-------------|------------|
-| `setTimeout` mock in `useEffect` | Replace | Call `GET /api/passport/{username}` (after reading session from Supabase auth) to get real readiness score and achievements |
+| `generateRoadmap()` fetch headers | Fix auth | Import `getAuthHeaders` from `@/lib/api`; add `headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) }` |
 
 ---
 
 ## 8. README rewrite blueprint
 
+The current README is actually strong — it has the architecture diagram, sample outputs, all 5 engines explained, Quick Start, configuration table, and project structure. The rewrite is surgical, not a full replacement.
+
 ### Suggested header block
 ```markdown
 # CareerForge ⚔️
 
-**The AI Career OS that fights AI with AI — verifying skills through adversarial code sandboxes
-so candidates can prove, not claim, their competence.**
+**The AI Career OS that fights AI with AI — adversarially verifying skills through 
+deliberate code sabotage so candidates can prove, not claim, their competence.**
 
-[![Build](https://github.com/Mannava-Daasaradhi/CareerForge/actions/workflows/ci.yml/badge.svg)]()
-[![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)]()
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)]()
-[![License](https://img.shields.io/badge/License-MIT-yellow)]()
-[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange)]()
+[![Build Status](https://github.com/Mannava-Daasaradhi/CareerForge/actions/workflows/ci.yml/badge.svg)](...)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB...)]
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000...)]
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688...)]
+[![LangGraph](https://img.shields.io/badge/LangGraph-Stateful_Agents-FF6B00...)]
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow...)]
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Railway-blueviolet...)]  ← ADD
 
-[**Demo Video**] · [**Live Demo**] · [**Architecture**] · [**Setup Guide**]
-
-<!-- INSERT DEMO GIF HERE -->
+![CareerForge Demo](assets/demo.gif)  ← FILL IN THE PLACEHOLDER
 ```
 
 ### Sections the README must contain
 
-**What it does** — 3-4 sentences. Lead with the problem (AI-faked skills), then the solution (5-engine adversarial verification + autonomous agents), then the output (Skill Passport). Mention zero-cost infrastructure. Suggested length: 1 paragraph.
-
-**Architecture diagram** — A visual showing the 5 engines as a flow: Resume → Airlock → Gauntlet (GitHub Audit + Sandbox) → Interview Engine → Ghost Tech Lead → Sniper. Use a Mermaid diagram or an image. Include the Supervisor-Worker agent topology.
-
-**The 5 Engines** — Brief bullet per engine. Include the key tech for each. Keep current content but add one example output line per engine (e.g., "Trust Score: 73/100 — Low Trust: Sandbox Mode Activated").
-
-**Results / Sample Outputs** — THIS IS MISSING AND CRITICAL. Show a real `trust_score` JSON output, a real generated challenge, a real roadmap snippet, a real cold email draft. Don't describe what outputs look like — show them.
-
-**Quick Start** — Exact commands (see Section 11). Must work from cold start.
-
-**Project Structure** — The current tree in the README is wrong (shows an `agents/` subdirectory that doesn't exist; all agents are flat in `backend/`). Fix to match actual structure.
-
-**Configuration** — Table of all env vars with descriptions and where to get free keys.
-
-**Roadmap / Future Work** — Mention: background worker deployment, full Presidio PII redaction in interview logs, voice stress analysis via audio features (not just text), semantic search over passport history.
-
-**Citation** — If this was a hackathon project or course project, note it.
+1. **What it does** — The current "The Problem" + "The 5 Engines" sections are good. Keep them. Trim the engine descriptions to 2 sentences each for scannability.
+2. **Why it's interesting** — Add a "How is this different from LeetCode / LinkedIn" callout box. The adversarial verification angle is genuinely novel; it needs a standalone paragraph, not just a buried bullet.
+3. **Architecture** — Current Mermaid diagram is excellent. Add a rendered PNG export of it (`assets/architecture.png`) as a fallback for scrapers and social previews.
+4. **Results / benchmarks** — **Currently missing.** Add a table: "Auditor performance on 40 accounts (20 genuine / 20 AI-generated): Precision X%, Recall Y%". Run the test. Publish the number. Even rough numbers are more compelling than no numbers.
+5. **Quick start** — Current setup is 6 steps and clear. The only addition needed: mention `frontend/.env.local.example` in the frontend setup step.
+6. **Project structure** — Current structure block is accurate and annotated. Keep it.
+7. **How it works** — The 5 Engines section covers this. Consider adding a "One-turn walkthrough" — narrative of exactly what happens when a user submits an audio answer, which nodes fire, and what state changes.
+8. **Roadmap** — Current roadmap is realistic and honest. Keep it. Mark completed items with ✅ as they ship.
+9. **Citation / acknowledgements** — Add acknowledgements to Groq (free inference), Gemini (free Shadow Auditor), Piston (free code sandbox), Supabase (free DB), LangChain/LangGraph (the orchestration layer).
 
 ### Suggested demo / visual
-Run the following sequence and record/screenshot each step:
-```bash
-# 1. GitHub audit demo
-curl http://localhost:8000/api/audit/torvalds | python -m json.tool
+Record a screen capture (OBS or Loom):
+1. Open `http://localhost:3000`
+2. Upload a sample resume PDF
+3. Trigger GitHub audit on a test username
+4. Generate a Python Generators challenge (difficulty 70)
+5. Fix the broken code in the editor
+6. View the resulting Skill Passport badge
 
-# 2. Challenge generation  
-curl -X POST http://localhost:8000/api/challenge/new \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "Python Generators", "difficulty": 70}'
-
-# 3. Roadmap generation
-curl -X POST http://localhost:8000/api/career/roadmap \
-  -H "Content-Type: application/json" \
-  -d '{"skill_gaps": ["Redis", "Docker"], "target_role": "Backend Engineer"}'
-```
-Embed the outputs as code blocks. Record a 45-second GIF of the Interview page (voice or text mode) showing the Shadow Auditor critique appearing after a user answer.
+Export as `assets/demo.gif` (compress with `gifsicle -O3`). Target: under 5MB, 60 seconds max.
 
 ### Badges to add
 ```markdown
-[![Build Status](https://github.com/Mannava-Daasaradhi/CareerForge/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Mannava-Daasaradhi/CareerForge/actions)
-[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white&style=flat-square)](https://python.org)
-[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&style=flat-square)](https://nextjs.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?logo=fastapi&style=flat-square)](https://fastapi.tiangolo.com)
-[![LangGraph](https://img.shields.io/badge/LangGraph-Stateful_Agents-FF6B00?style=flat-square)](https://langchain-ai.github.io/langgraph/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
-[![Last Commit](https://img.shields.io/github/last-commit/Mannava-Daasaradhi/CareerForge?style=flat-square)](https://github.com/Mannava-Daasaradhi/CareerForge/commits/main)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Railway-blueviolet?style=flat-square)](https://your-railway-url)
+[![Last Commit](https://img.shields.io/github/last-commit/Mannava-Daasaradhi/CareerForge?style=flat-square)](...)
+[![Open Issues](https://img.shields.io/github/issues/Mannava-Daasaradhi/CareerForge?style=flat-square)](...)
 ```
 
 ---
@@ -820,57 +625,47 @@ Embed the outputs as code blocks. Record a 45-second GIF of the Interview page (
 ## 9. Tech stack
 
 | Layer | Current | Recommended change | Reason |
-|-------|---------|-------------------|--------|
-| Python version | 3.10+ (implied) | Pin to 3.11 explicitly in Dockerfile | Match `match` statement support; performance improvements |
-| LangGraph | Unpinned | `langgraph>=0.2.0` | API stability |
-| Groq inference | Llama 3.3 70B | Keep — excellent choice | Sub-second latency on free tier |
-| Gemini | gemini-2.0-flash in code, 1.5-flash in README | Standardize to `gemini-2.0-flash` throughout | Avoid confusion; 2.0 is better |
-| Search | DuckDuckGoSearchRun (langchain-community) | Consider Serper API (free tier) as fallback | DuckDuckGo has rate limit issues in production |
-| Database | Supabase (PostgreSQL + pgvector) | Keep — schema is production-quality | RLS policies are done correctly |
-| Code execution | Piston public API | Keep for dev; add `PISTON_API_URL` option for self-hosted | Public Piston can be slow |
-| PDF processing | pdf2image + pytesseract + pypdf | Keep stack, fix requirements | The OCR → PyPDF fallback approach is correct |
-| Frontend framework | Next.js 16 (App Router) | Keep | Latest stable |
-| Frontend auth | Supabase Auth helpers | Keep | Already integrated |
-| Styling | Tailwind CSS | Keep | Consistent, good output |
-| Animations | Framer Motion 12 | Keep | Smooth, production-quality |
-| Experiment tracking | None | Skip for now | Not an ML training project |
-| Container | None | Add Docker + compose (see Section 6) | Reproducibility |
-| CI/CD | None | Add GitHub Actions (see Section 6) | Credibility |
-| Logging | print() everywhere | Replace with Python `logging` module | Production observability |
-| Type checking | No mypy | Add mypy to CI for backend | Catch bugs before runtime |
+|-------|---------|--------------------|--------|
+| Language | Python 3.11 | Keep | Pattern matching available, good LangChain support |
+| LLM (interview) | Llama 3.3 70B via Groq | Keep | Free tier, fast inference, 128K context |
+| LLM (auditor) | Gemini 2.0 Flash | Keep | Free tier, multimodal-ready for future resume image parsing |
+| LLM orchestration | LangGraph 0.2+ | Keep | Correct tool for stateful agent graphs |
+| API framework | FastAPI 0.115 | Keep | Async, auto docs, Pydantic integration |
+| Database | Supabase (PostgreSQL) | Keep | Free tier, pgvector enabled for future semantic search |
+| Code sandbox | Piston public API | Self-host for production | Public API is rate-limited and has no SLA |
+| Graph persistence | MemorySaver (in-memory) | SqliteSaver or PostgresSaver | MemorySaver loses all state on restart |
+| Frontend | Next.js 16, React 19 | Keep | App Router, React Compiler enabled |
+| Frontend styling | Tailwind + Framer Motion | Keep | Consistent and performant |
+| Auth | Supabase Auth | Keep | JWT validation works, free tier |
+| Background jobs | APScheduler (standalone script) | Add Procfile + Railway worker dyno | Script has no process manager in deployment |
+| Containerization | Docker + docker-compose | Keep | Both Dockerfiles are production-quality |
+| CI/CD | GitHub Actions | Expand to run `test_flow.py` | Currently only runs `verify_fix.py` |
+| Search | DuckDuckGo (langchain-community) | Keep for now | Zero cost, adequate for job market queries |
+| Logging | Mixed print()/logger | Standardize on logger.py | Already written — just needs consistent use |
 
 ---
 
 ## 10. Dependencies audit
 
-### Current backend dependencies (with issues)
-```
-langgraph          # ⚠️ UNPINNED
-langchain          # ⚠️ UNPINNED
-langchain-groq     # ⚠️ UNPINNED
-langchain-google-genai  # ⚠️ UNPINNED
-fastapi            # ⚠️ UNPINNED
-uvicorn            # ⚠️ UNPINNED
-python-dotenv      # ⚠️ UNPINNED
-requests           # ⚠️ UNPINNED
-supabase           # ⚠️ UNPINNED
-presidio-analyzer  # ⚠️ UNPINNED
-presidio-anonymizer # ⚠️ UNPINNED
-pdf2image          # ⚠️ UNPINNED
-pytesseract        # ⚠️ UNPINNED
-pymupdf            # ⚠️ LISTED BUT NOT USED IN CODE (code uses pypdf)
-numpy              # ⚠️ UNPINNED
-pandas===          # ❌ SYNTAX ERROR
-```
+### Current dependencies
+All Python dependencies in `requirements.txt` are correctly versioned with `>=` constraints. No pinned-to-exact-patch versions (which is appropriate for a project at this stage). No conflicting pairs detected.
+
+**Unused dependencies (should be removed):**
+- `numpy>=2.0.0` — not imported anywhere in backend source
+- `pandas>=2.2.0` — not imported anywhere in backend source
+
+**Dependencies used in code but not listed:**
+- `framer-motion` is used in `Navbar.tsx` but the `package.json` `dependencies` section does not list it directly. It's currently a transitive dependency through another package. Should be explicitly listed: `"framer-motion": "^11.0.0"` in `frontend/package.json`.
+
+**Dependencies used in code but potentially misconfigured:**
+- `google-generativeai>=0.8.0` is in requirements.txt. `shadow_auditor.py` uses `langchain-google-genai` (also listed). Both are needed; no conflict.
+- `presidio-analyzer` and `presidio-anonymizer` require spaCy models at runtime. The `Dockerfile` installs the packages but not the spaCy `en_core_web_lg` model. This causes a silent fallback (`SECURITY_ACTIVE = False`) on first run.
 
 ### Missing dependencies
-- `pypdf>=4.0.0` — used in `resume_parser.py`, completely missing
-- `langchain-community>=0.2.0` — used in `job_fetcher.py` and `demand_analyzer.py`
-- `google-generativeai>=0.8.0` — used in `tests/model.py`
-- `duckduckgo-search>=6.0.0` — underlying package for `DuckDuckGoSearchRun`
-- `groq>=0.12.0` — used directly in `voice_processor.py` (`from groq import Groq`)
+- `spacy` model download not in Dockerfile: `RUN python -m spacy download en_core_web_lg` — needed for Presidio PII redaction to actually work
+- `apscheduler>=3.10.0` is listed (good) — but `background_worker.py` still has an `ImportError` check for it rather than requiring it at install time
 
-### Recommended `backend/requirements.txt`
+### Recommended final requirements.txt
 ```
 # Core Orchestration
 langgraph>=0.2.0
@@ -906,9 +701,10 @@ pypdf>=4.0.0
 # Web Search
 duckduckgo-search>=6.3.0
 
-# Utilities
-numpy>=2.0.0
-pandas>=2.2.0
+# Background Worker Scheduler
+apscheduler>=3.10.0
+
+# REMOVED: numpy, pandas (unused — were adding 200MB to Docker image for no benefit)
 ```
 
 ---
@@ -916,117 +712,146 @@ pandas>=2.2.0
 ## 11. Setup and run (once complete)
 
 ```bash
-# 1. Clone
+# Clone
 git clone https://github.com/Mannava-Daasaradhi/CareerForge.git
 cd CareerForge
 
-# 2. System dependencies (Ubuntu/Debian — required for OCR)
-sudo apt-get install tesseract-ocr poppler-utils
-# macOS: brew install tesseract poppler
+# ── SYSTEM DEPENDENCIES ──────────────────────────────
+# macOS:
+brew install tesseract poppler
+# Ubuntu/Debian:
+sudo apt-get install -y tesseract-ocr poppler-utils
+# Windows (PowerShell):
+winget install UB-Mannheim.TesseractOCR
+# Download Poppler from https://github.com/oschwartz10612/poppler-windows/releases
+# Extract to C:\poppler and add C:\poppler\Library\bin to PATH
 
-# 3. Backend setup
+# ── BACKEND SETUP ────────────────────────────────────
 cd backend
 cp .env.example .env
-# Edit .env: add GROQ_API_KEY, GOOGLE_API_KEY, and optionally SUPABASE_URL/KEY
-python -m venv venv && source venv/bin/activate
+# Edit .env — add GROQ_API_KEY (required) and GOOGLE_API_KEY (required)
+# Add GITHUB_TOKEN (optional, prevents rate limiting)
+# Add SUPABASE_URL + SUPABASE_KEY (optional, enables persistence)
+
+python -m venv venv
+source venv/bin/activate         # Windows: .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 4. Database setup (optional — app runs in stateless mode without it)
-# Paste contents of supabase_schema.sql into Supabase SQL editor
+# ── DATABASE SETUP (optional) ────────────────────────
+# Paste contents of supabase_schema.sql into your Supabase SQL editor
+# Then update .env with your SUPABASE_URL and SUPABASE_KEY
 
-# 5. Run backend
+# ── RUN BACKEND ──────────────────────────────────────
 uvicorn main:app --reload --port 8000
-
-# Expected output:
-# DatabaseManager: Running in Stateless Mode. (without Supabase creds)
-# INFO: Uvicorn running on http://0.0.0.0:8000
-
-# 6. Frontend setup (new terminal)
-cd ../frontend
-cp .env.local.example .env.local
-# Edit .env.local: add Supabase keys if using auth
-npm install
-npm run dev
-
-# Expected output:
-# ▲ Next.js 16.1.1
-# - Local: http://localhost:3000
-
-# 7. Run tests
-cd backend
-python -m pytest tests/verify_fix.py -v
-python tests/test_flow.py  # Integration tests (requires running backend)
-
-# 8. Verify key endpoints
-curl http://localhost:8000/
+# Expected: INFO: Uvicorn running on http://0.0.0.0:8000
+# Health check: curl http://localhost:8000/
 # → {"status":"active","mode":"stateful_agent"}
 
+# ── FRONTEND SETUP (new terminal) ────────────────────
+cd ../frontend
+cp .env.local.example .env.local
+# Edit .env.local — add NEXT_PUBLIC_API_BASE=http://localhost:8000/api
+# Add Supabase keys if using auth
+
+npm install
+npm run dev
+# Expected: ▲ Next.js — Local: http://localhost:3000
+
+# ── OR: ONE-COMMAND DOCKER SETUP ─────────────────────
+# From repo root:
+cp backend/.env.example backend/.env
+# Edit backend/.env with your keys, then:
+docker compose up --build
+# Frontend: http://localhost:3000
+# Backend:  http://localhost:8000
+
+# ── RUN TESTS ─────────────────────────────────────────
+cd backend
+python -m pytest tests/verify_fix.py -v
+# → 1 test (auditor offline resilience) — should PASS without any API keys
+
+# Integration tests (requires running backend):
+python tests/test_flow.py
+# → 6 tests: health, github_audit, challenge_gen, market_demand, recruiter_proxy, roadmap
+
+# ── VERIFY CORE FEATURES ──────────────────────────────
+# GitHub audit (no auth required):
 curl http://localhost:8000/api/audit/torvalds
 # → {"username":"torvalds","trust_score":100,...}
+
+# Challenge generation (requires GROQ_API_KEY):
+curl -X POST http://localhost:8000/api/challenge/new \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "Python Generators", "difficulty": 70}'
+# → {"title":"...","scenario":"...","broken_code":"...","test_cases":[...]}
 ```
 
 ---
 
 ## 12. Key decisions that need to be made
 
-**State persistence strategy for multi-user scale**: Currently `MemorySaver` stores all session state in-memory. For multi-instance deployments, this means session state is lost on restart or across pods. Options: (A) Accept stateless mode for production and use only Supabase DB logs for history reconstruction (simpler, no extra dep); (B) Use `SqliteSaver` from LangGraph for single-server persistence; (C) Use Redis checkpointer (complex, but horizontally scalable). Recommendation: Ship B (SqliteSaver) now for demo quality, document C as a production upgrade path.
+- **LangGraph checkpointer in production**: `MemorySaver` (current) loses all state on restart. `SqliteSaver` persists to a local file (breaks on multi-instance deployment). `PostgresSaver` (via the `langgraph-checkpoint-postgres` package) uses Supabase's existing Postgres connection and is the correct production choice. Decision: upgrade to PostgresSaver when deploying to Railway; keep MemorySaver for local dev.
 
-**Should `red_team.py` be wired into the interview graph?**: It adds a third AI call per turn (already doing Shadow Auditor + Lead Interviewer). This increases latency. Options: (A) Wire it in as a third node between shadow_auditor and code_sandbox; (B) Run it in parallel with shadow_auditor (LangGraph supports this); (C) Keep it as a standalone function callable from the `/api/audit/{username}` endpoint for one-shot analysis. Recommendation: Option C for now — surface it via the dashboard as "Code Review" mode.
+- **Background worker process model**: The `background_worker.py` is a standalone Python script with no process supervisor. Two options: (A) add it as a Railway worker dyno via `Procfile` (zero cost, separate restart lifecycle); (B) integrate APScheduler into the FastAPI startup event (`@app.on_event("startup")`), which is simpler but means the scheduler shares the web worker's process and restarts. Recommendation: option A — separate process is more resilient and matches the existing file structure.
 
-**Public Skill Passport trust model**: The passport uses SHA-256 of DB record IDs as "verification hashes" and presents them as crypto-like proof. This is decorative — the hashes don't actually verify anything cryptographically since the same DB can be edited. Decision: (A) Keep as-is (the visual impression is enough for a portfolio project); (B) Add Supabase edge function that generates HMAC signatures using a server-side secret (real but complex); (C) Be honest in the UI that these are internal consistency hashes, not external cryptographic proofs. Recommendation: Option C + A. Add a tooltip explaining the trust model honestly.
+- **Piston API self-hosting**: The current default uses `https://emkc.org/api/v2/piston` (public, rate-limited, no SLA). For production, self-hosting Piston via Docker is free and eliminates rate limits. Decision: add a `docker-compose.yml` service for Piston and update `.env.example`'s `PISTON_API_URL` default.
 
-**Demand Analyzer search queries hardcode "2024 2025"**: The queries will return increasingly stale results. Decision: (A) Use `datetime.now().year` dynamically; (B) Add a date parameter to the endpoint. Recommendation: Option A is a one-line fix.
+- **Skill Passport as a verifiable credential vs. a trust score**: The current `verification_hash` is a SHA-256 of internal data — the `hash_note` correctly labels it "not an external cryptographic proof." A future decision: issue passports as signed JWTs (signing key held by CareerForge) so they're portable and tamper-evident. This is a significant scope increase but dramatically elevates the value proposition. Not needed for MVP.
 
-**Background worker deployment**: The current `background_worker.py` uses `while True: ... time.sleep(3600)`. In production this is fragile (no retry, no monitoring). Decision: (A) Keep simple loop, document as `python background_worker.py &`; (B) Add `APScheduler` for cron-style execution with catch/retry; (C) Use Supabase Edge Functions for serverless scheduling. Recommendation: Option B for a serious demo — it's a 20-line change.
+- **GitHub commit entropy thresholds**: The roadmap mentions detecting AI-generated code via diff entropy, but the auditor currently only measures account age and push frequency. Before implementing entropy analysis, a threshold for "AI-slop vs. genuine" needs to be calibrated empirically (run on a labeled dataset). Don't implement this without publishing the confusion matrix — otherwise it's an unverifiable claim.
+
+- **Frontend auth requirement**: Currently most routes require `Authorization: Bearer <token>`, but the `demo.gif` / first-time experience requires a Supabase account. Consider adding a "guest mode" (dev fallback already exists in the backend) where the frontend can skip auth and use `user_id: "guest"` for public demos. This is optional but significantly lowers the "try it" barrier.
 
 ---
 
 ## 13. What would make this genuinely impressive
 
-**Live deployed demo** — A Vercel frontend + Railway/Render backend with real API keys, publicly accessible without signup, would let anyone try the voice interview or challenge generator right from the README. This alone would 5x the stars. The zero-cost infrastructure thesis means this could be hosted on free tiers.
+The project is already architecturally interesting. To become something an engineer bookmarks and shares rather than just stars, it needs three things:
 
-**Real benchmark numbers** — Run the GitHub Auditor on 50 known "AI-slop" accounts vs 50 known genuine contributors. Measure whether the trust score correctly separates them. Publish the confusion matrix. This transforms the project from "clever idea" to "measurable system."
+**1. A published benchmark that proves the premise.** The entire project rests on the claim that the GitHub Auditor can distinguish AI-faked accounts from genuine contributors, and that the Cursed Sandbox can't be bypassed by copying from ChatGPT. Neither claim is backed by numbers. Run the auditor against 50 accounts with known ground truth (AI-slop repos created for the test vs. genuine contributors); publish precision/recall. Run the challenge generator 20 times on GPT-4's output and count how many it detects as "fix the bug" vs. "here's a working solution." Put the table in the README. This is 2-3 hours of work and converts the project from "interesting idea" to "demonstrated technique."
 
-**Commit entropy analysis actually implemented in the auditor** — The README claims the auditor "scans GitHub repositories for commit entropy to detect AI-generated code slop." The code doesn't actually do this — it only scores based on account age, push count, and repo count. Implementing actual diff-entropy analysis (measure character-level entropy of commit diffs, flag suspiciously uniform patches) would make the trust model real.
+**2. A real deployed instance with a live demo URL.** `railway.toml` already exists. The backend is ready to deploy. The single missing step is filling in the Vercel URL in `main.py`'s CORS origins. A live URL in the README eliminates the biggest barrier to engagement: having to set up the whole stack to see it work. The Groq and Gemini free tiers can handle substantial traffic.
 
-**Voice stress analysis beyond text features** — The current confidence score is computed from transcribed text (filler word counts). Real signal comes from audio features (pitch variance, pause duration, speech rate). Using `librosa` for audio feature extraction before Whisper transcription would make the vibe analysis genuinely novel.
-
-**Skill Passport as a shareable URL** — `/candidate/torvalds` already exists as a route. If this page loaded real passport data and was publicly accessible, candidates could add `careerforge.ai/candidate/your-github-username` to their resume. That would create organic growth, cross the product from "tool" to "credential," and make the repo genuinely useful.
-
-**A documented comparison to existing ATS tools** — Show that the challenge-based verification catches AI-generated portfolios that fool keyword-matching ATS systems. A single well-documented example (fake GitHub profile vs. real one, both submitted, showing how the Gauntlet differentiates them) would be cited and shared.
+**3. The commit entropy analyzer.** The roadmap lists it as a future feature but it's actually the most technically novel part of the entire concept. Measuring Shannon entropy of commit diffs to detect AI-generated code patterns is a real research question. Implementing it, calibrating it, and publishing the methodology would make CareerForge citable — a tool that a hiring platform or a researcher studying AI-fraud in open source would actually reference. This is the leap from "impressive portfolio project" to "project that gets mentioned in articles about AI hiring."
 
 ---
 
 ## 14. Star-worthiness checklist
 
 ### Must-have (project is not shareable without these)
-- [ ] Runs end-to-end without crashing from a fresh clone — **BLOCKED by requirements.txt syntax error and missing pypdf**
-- [ ] README explains what the project does in the first paragraph — **DONE** (good narrative)
-- [ ] Setup is achievable in under 5 commands — **MISSING** (no setup guide in README)
-- [ ] At least one concrete result, output, or demo is shown — **MISSING** (no screenshots or sample outputs)
-- [x] No hardcoded absolute paths, API keys, or secrets in code — **CLEAN**
-- [ ] requirements.txt is complete and pinned — **BROKEN** (syntax error, missing deps, no pins)
-- [ ] LICENSE file is present — **MISSING**
+- [x] Runs end-to-end without crashing from a fresh clone — **after Phase 1 fixes**
+- [x] README explains what the project does in the first paragraph
+- [x] Setup is achievable in under 5 commands (with Docker)
+- [x] At least one concrete result, output, or demo is shown (sample JSON outputs in README)
+- [x] No hardcoded absolute paths, API keys, or secrets in code
+- [x] requirements.txt / pyproject.toml is complete and pinned
+- [x] LICENSE file is present (MIT)
 
 ### Should-have (separates good repos from great ones)
-- [x] Architecture diagram or visual in README — **DONE** (5-engine description, but no diagram image)
-- [ ] Results table with numbers — **MISSING**
-- [ ] At least one working example script or notebook — **PARTIAL** (`test_flow.py` and standalone `if __name__ == "__main__"` blocks exist but aren't documented)
-- [ ] Reproducible results (fixed random seeds, config files) — **MISSING** (LLM temperature is set but no seeding)
-- [ ] Proper logging instead of print statements — **MISSING** (all print() everywhere)
-- [x] Meaningful error messages and exception handling — **DONE** (most modules have try/except with fallbacks)
-- [ ] Type hints on all public functions — **PARTIAL** (Pydantic models are good; function signatures lack return types)
-- [ ] Docstrings on all public classes and functions — **PARTIAL** (most functions have docstrings; some are thin)
-- [x] .gitignore covers all generated files and secrets — **DONE** (covers .env, __pycache__, temp_*.pdf)
+- [x] Architecture diagram in README (Mermaid — excellent)
+- [ ] Results table with numbers — **MISSING: no benchmark published**
+- [x] At least one working example script or notebook (test_flow.py)
+- [ ] Reproducible results (fixed random seeds) — LLM calls use temperature but no seeds; non-deterministic by design
+- [x] Proper logging — logger.py present; needs consistent use across all modules
+- [x] Meaningful error messages and exception handling
+- [x] Type hints on all public functions (backend) — mostly present; frontend api.ts fully typed
+- [x] Docstrings on all public classes and functions — present on most; a few missing
+- [x] .gitignore covers all generated files and secrets
 
 ### Nice-to-have (makes it genuinely star-worthy)
-- [ ] Demo GIF or video in README — **MISSING** (highest impact item)
-- [ ] Docker / docker-compose for one-command setup — **MISSING**
-- [ ] GitHub Actions CI running tests on every push — **MISSING** (badge claims "passing" but no CI)
-- [ ] Comparison to baseline or SOTA method — **MISSING**
-- [ ] Contribution guide (CONTRIBUTING.md) — **MISSING**
-- [ ] Changelog (CHANGELOG.md) — **MISSING**
-- [ ] Pre-commit hooks for formatting and linting — **MISSING**
-- [ ] Model card or data card — **N/A** (no trained models, inference only)
-- [ ] Interactive demo (Gradio, Streamlit, or hosted link) — **MISSING** (the Next.js app *is* the demo, but no deployed link)
-- [ ] Paper or blog post link — **MISSING** (would benefit from a dev.to or Substack post explaining the trust crisis thesis)
+- [ ] Demo GIF or video in README — **placeholder exists, GIF not recorded yet**
+- [x] Docker / docker-compose for one-command setup
+- [x] GitHub Actions CI running tests on every push
+- [ ] Comparison to baseline or SOTA — no benchmark published
+- [x] Contribution guide (CONTRIBUTING.md) — excellent, detailed
+- [ ] Changelog (CHANGELOG.md) — missing
+- [x] Pre-commit hooks for formatting and linting
+- [ ] Model card or data card — not present
+- [ ] Interactive demo (hosted link) — Railway deploy not done yet
+- [ ] Paper or blog post link — not present
+
+---
+
+## Progress tracking note
+
+*This document is the second version of the analysis (first version was `CareerForge_Analysis.md` in the repo, dated April 20, 2026). The current version reflects a significantly more complete codebase: `public_routes.py` has been patched from hardcoded mock data to real function calls; `resume_parser.py` was rewritten to always return a dict (fixing the str-vs-dict inconsistency that broke callers); `skill_passport.py` was patched to query by `user_id` instead of `session_id` for interview logs; `kanban.py` was rewritten with full CRUD and `user_id` support; `background_worker.py` was upgraded from a bare `while True: time.sleep(3600)` loop to APScheduler with proper job scheduling and graceful shutdown; `rate_limiter.py`, `logger.py`, and `CONTRIBUTING.md` were added as new files. The six bugs documented in Section 4 (broken imports, burnout counter, red_team_verdict state field, passport table name, recruiter_proxy key names, frontend mock pages) are the remaining gaps between the current state and a clean cold-start run.*

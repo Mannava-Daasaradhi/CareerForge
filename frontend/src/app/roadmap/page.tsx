@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import { supabase } from "@/lib/api";
 
 // --- TYPES ---
 interface WeeklyMilestone {
@@ -36,10 +37,15 @@ const generateRoadmap = async () => {
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(`${API_BASE}/career/roadmap`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
+
           skill_gaps: skillGaps.split(",").map(s => s.trim()).filter(Boolean),
           target_role: role,
         }),
