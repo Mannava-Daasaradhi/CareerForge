@@ -11,12 +11,11 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
 
 // --- SECURITY HELPER ---
-const getAuthHeaders = async () => {
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   
   if (!token) {
-    console.warn("⚠️ No Auth Token found. API requests may fail.");
     return {};
   }
   return { "Authorization": `Bearer ${token}` };
