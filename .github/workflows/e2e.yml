@@ -13,6 +13,9 @@ jobs:
     name: Playwright E2E
     runs-on: ubuntu-latest
     container:
+      # Image version MUST match @playwright/test in e2e/package.json.
+      # Current: @playwright/test ^1.44.0 → image v1.44.0-jammy
+      # To upgrade: bump both together, e.g. 1.45.0 here and in package.json
       image: mcr.microsoft.com/playwright:v1.44.0-jammy
     timeout-minutes: 30
 
