@@ -56,7 +56,7 @@ def shadow_auditor_node(state: InterviewState):
     )
 
     try:
-        response = _get_llm.invoke([SystemMessage(content=system_prompt)])
+        response = _get_llm().invoke([SystemMessage(content=system_prompt)])
         return {"shadow_critique": response.content}
     except Exception as e:
         # Prevent crash if Google API fails

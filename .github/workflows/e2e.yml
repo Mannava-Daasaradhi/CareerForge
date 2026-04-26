@@ -28,6 +28,9 @@ jobs:
         working-directory: e2e
         run: npm ci
 
+      - name: Fix libasound2 on Ubuntu 24 (noble renamed libasound2 → libasound2t64)
+        run: sudo apt-get update && sudo apt-get install -y libasound2t64
+
       - name: Install Playwright browsers
         working-directory: e2e
         run: npx playwright install --with-deps chromium
