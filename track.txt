@@ -1,4 +1,0 @@
-fix is backend/resume_parser.py.
-Action: Add one line at the very end of the file:
-pythonextract_text_with_ocr = _extract_text
-This creates the public alias that resume_tailor.py and background_worker.py both import, without changing any existing logic. Once you've added that line and confirmed the file looks right, let me know and we'll move to the next file.
