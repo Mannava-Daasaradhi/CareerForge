@@ -11,6 +11,7 @@ interface SkillPassport {
   candidate_id: string;
   interview_readiness_score: number;
   github_trust_score: number;
+  challenges_passed: number;
   verified_skills: string[];
   recent_achievements: {
     challenge_title: string;
@@ -55,14 +56,27 @@ export default function CandidateProfilePage() {
         return res.json();
       })
       .then((data) => {
-        setPassport(data);
+        // The backend (get_skill_passport) returns:
+        //   { username, readiness_score, trust_score, challenges_passed,
+        //     interview_sessions, skill_verdict, ... }
+        // Map it to this page's view model and default every array, so a missing
+        // field can never crash the render (this page is public / unauthenticated).
+        const view: SkillPassport = {
+          candidate_id: data.username ?? username ?? "Candidate",
+          interview_readiness_score: data.readiness_score ?? 0,
+          github_trust_score: data.trust_score ?? 0,
+          challenges_passed: data.challenges_passed ?? 0,
+          verified_skills: data.verified_skills ?? [],
+          recent_achievements: data.recent_achievements ?? [],
+        };
+        setPassport(view);
         setLoading(false);
         // Initial Greeting from the AI Agent
         setChatHistory([
-          { 
-            role: "twin", 
-            content: `Hi! I'm ${data.candidate_id}'s Digital Twin. I can answer questions about their coding skills, verify their GitHub history, or schedule a meeting. What would you like to know?` 
-          }
+          {
+            role: "twin",
+            content: `Hi! I'm ${view.candidate_id}'s Digital Twin. I can answer questions about their coding skills, verify their GitHub history, or schedule a meeting. What would you like to know?`,
+          },
         ]);
       })
       .catch((err) => {
@@ -149,7 +163,7 @@ export default function CandidateProfilePage() {
               <span className="text-xl text-gray-500 mb-2">/ 100</span>
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              Based on {passport?.github_trust_score}% GitHub activity and {passport?.recent_achievements.length} verified technical challenges.
+              Based on {passport?.github_trust_score}% GitHub activity and {passport?.challenges_passed ?? 0} verified technical challenges.
             </p>
           </motion.div>
 
@@ -162,8 +176,8 @@ export default function CandidateProfilePage() {
               Verified Skills
             </h3>
             <div className="flex flex-wrap gap-2">
-              {passport?.verified_skills.length === 0 && <span className="text-gray-500 italic">No verified skills yet.</span>}
-              {passport?.verified_skills.map((skill, i) => (
+              {(passport?.verified_skills?.length ?? 0) === 0 && <span className="text-gray-500 italic">No verified skills yet.</span>}
+              {passport?.verified_skills?.map((skill, i) => (
                 <span key={i} className="px-3 py-1 rounded-md bg-gray-800 border border-gray-700 text-sm text-cyan-300">
                   {skill}
                 </span>
@@ -174,7 +188,7 @@ export default function CandidateProfilePage() {
           {/* RECENT CHALLENGES */}
           <div className="space-y-4">
             <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Recent Sandbox Logs</h3>
-            {passport?.recent_achievements.map((ach, i) => (
+            {passport?.recent_achievements?.map((ach, i) => (
               <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-gray-900/50 border border-gray-800/50">
                 <div className="w-8 h-8 rounded bg-green-500/20 flex items-center justify-center text-green-400">
                   ✓
