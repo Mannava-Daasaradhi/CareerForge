@@ -136,12 +136,12 @@ test.describe("Page Loads (Authenticated)", () => {
 
   test("/roadmap loads skill tree", async ({ page }) => {
     await page.goto(`${BASE_URL}/roadmap`);
-    await expect(page.locator("body")).toContainText("Roadmap", { timeout: 10000 });
+    await expect(page.locator("body")).toContainText("Skill Tree", { timeout: 10000 });
   });
 
   test("/kanban loads job pipeline", async ({ page }) => {
     await page.goto(`${BASE_URL}/kanban`);
-    await expect(page.locator("body")).toContainText("Kanban", { timeout: 10000 });
+    await expect(page.locator("body")).toContainText("Mission Control", { timeout: 10000 });
   });
 
   test("/hunter loads job search", async ({ page }) => {
@@ -156,12 +156,12 @@ test.describe("Page Loads (Authenticated)", () => {
 
   test("/outreach loads network sniper", async ({ page }) => {
     await page.goto(`${BASE_URL}/outreach`);
-    await expect(page.locator("body")).toContainText("Outreach", { timeout: 10000 });
+    await expect(page.locator("body")).toContainText("Network", { timeout: 10000 });
   });
 
   test("/passport loads skill passport", async ({ page }) => {
     await page.goto(`${BASE_URL}/passport`);
-    await expect(page.locator("body")).toContainText("Passport", { timeout: 10000 });
+    await expect(page.locator("body")).toContainText("Trust Score", { timeout: 15000 });
   });
 
   test("/recruiter loads digital twin", async ({ page }) => {

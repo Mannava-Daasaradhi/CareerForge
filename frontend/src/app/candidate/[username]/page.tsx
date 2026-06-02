@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { API_BASE } from "@/lib/api";
 
 // --- TYPES ---
 interface SkillPassport {
@@ -48,7 +49,7 @@ export default function CandidateProfilePage() {
     if (!username) return;
 
     // Call the Public API we created in backend/public_routes.py
-    fetch(`http://localhost:8000/api/public/profile/${username}`)
+    fetch(`${API_BASE}/public/profile/${username}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Candidate not found (or API offline)");
         return res.json();
@@ -82,7 +83,7 @@ export default function CandidateProfilePage() {
 
     try {
       // 2. Send to Backend Agent
-      const res = await fetch(`http://localhost:8000/api/public/twin/${username}/ask`, {
+      const res = await fetch(`${API_BASE}/public/twin/${username}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

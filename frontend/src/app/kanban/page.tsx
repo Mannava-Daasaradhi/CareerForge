@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import { API_BASE, getAuthHeaders } from "@/lib/api";
 
 // --- TYPES ---
 // Defined locally or import from @/types if you have a shared file
@@ -46,8 +47,8 @@ export default function KanbanPage() {
   // --- FETCH DATA ---
   const fetchApplications = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/kanban/list", {
-        headers: { "Authorization": "Bearer dev-token" } // Adjust if using real auth
+      const res = await fetch(`${API_BASE}/kanban/list`, {
+        headers: { ...(await getAuthHeaders()) }
       });
       if (res.ok) {
         const data = await res.json();
@@ -79,9 +80,9 @@ export default function KanbanPage() {
     };
 
     try {
-      await fetch("http://localhost:8000/api/kanban/add", {
+      await fetch(`${API_BASE}/kanban/add`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify(tempApp)
       });
       setNewRole("");
@@ -114,9 +115,9 @@ export default function KanbanPage() {
         // If we want the Phoenix Agent, we need to ensure the backend supports it.
         // Assuming we are just doing status update for now, unless we have a specific endpoint.
         
-        const res = await fetch("http://localhost:8000/api/kanban/update", {
+        const res = await fetch(`${API_BASE}/kanban/update`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
             body: JSON.stringify(body)
         });
 

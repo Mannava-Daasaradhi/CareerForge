@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import { API_BASE, getAuthHeaders } from "@/lib/api";
 
 // --- TYPES ---
 interface Offer {
@@ -53,9 +54,9 @@ export default function NegotiatorPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/negotiator/start", {
+      const res = await fetch(`${API_BASE}/negotiator/start`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify(setup)
       });
       const data = await res.json();
@@ -81,9 +82,9 @@ export default function NegotiatorPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/negotiator/chat", {
+      const res = await fetch(`${API_BASE}/negotiator/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({
           history: newHistory,
           current_offer: offer

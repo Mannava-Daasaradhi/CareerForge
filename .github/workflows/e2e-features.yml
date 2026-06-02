@@ -1,26 +1,24 @@
-name: E2E Tests
+name: E2E Feature Tests (non-blocking)
 
-# Self-contained full-stack E2E gate.
-# Spins up the real backend (uvicorn :8000) and frontend (Next.js :3000) on the
-# runner and tests against localhost — so CI no longer depends on any live host.
-# Only deterministic tests run here (LLM "Feature:" tests live in e2e-features.yml).
+# Runs the LLM-backed "Feature:" suites against a self-contained full-stack.
+# These hit Groq/Gemini/GitHub live and are inherently non-deterministic, so they
+# do NOT gate pushes/PRs — they run on a nightly schedule and on demand only.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *" # nightly at 06:00 UTC
 
 jobs:
-  e2e:
-    name: Full-Stack E2E (self-contained)
+  e2e-features:
+    name: Feature E2E (LLM, non-blocking)
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
 
-      # ── Backend (FastAPI / uvicorn) ──────────────────────────────────────────
+      # ── Backend ──────────────────────────────────────────────────────────────
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -41,21 +39,16 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          # GITHUB_-prefixed secret names are reserved, so the auditor token is
-          # stored as AUDITOR_GITHUB_TOKEN and mapped to GITHUB_TOKEN here.
           GITHUB_TOKEN: ${{ secrets.AUDITOR_GITHUB_TOKEN }}
         run: |
           nohup uvicorn main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
-          echo "Waiting for backend health check..."
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:8000/ > /dev/null; then
-              echo "✅ Backend is up"; curl -s http://localhost:8000/; echo; exit 0
-            fi
+            if curl -sf http://localhost:8000/ > /dev/null; then echo "✅ Backend up"; exit 0; fi
             sleep 2
           done
-          echo "❌ Backend failed to start"; cat backend.log; exit 1
+          echo "❌ Backend failed"; cat backend.log; exit 1
 
-      # ── Frontend (Next.js) ───────────────────────────────────────────────────
+      # ── Frontend ─────────────────────────────────────────────────────────────
       - name: Set up Node 20
         uses: actions/setup-node@v4
         with:
@@ -79,38 +72,33 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           nohup npm run start > frontend.log 2>&1 &
-          echo "Waiting for frontend..."
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/login > /dev/null; then
-              echo "✅ Frontend is up"; exit 0
-            fi
+            if curl -sf http://localhost:3000/login > /dev/null; then echo "✅ Frontend up"; exit 0; fi
             sleep 2
           done
-          echo "❌ Frontend failed to start"; cat frontend.log; exit 1
+          echo "❌ Frontend failed"; cat frontend.log; exit 1
 
-      # ── Playwright ───────────────────────────────────────────────────────────
+      # ── Playwright (Feature suites only) ─────────────────────────────────────
       - name: Install Playwright
         working-directory: e2e
         run: |
           npm ci
-          npx playwright install --with-deps chromium webkit
+          npx playwright install --with-deps chromium
 
-      - name: Run deterministic E2E gate
+      - name: Run Feature E2E
         working-directory: e2e
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           PLAYWRIGHT_BACKEND_URL: http://localhost:8000
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-        # Exclude the LLM-backed "Feature:" suites — they are non-deterministic
-        # and run separately in e2e-features.yml.
-        run: npx playwright test --grep-invert "Feature:"
+        run: npx playwright test --grep "Feature:" --project=chromium
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
+          name: playwright-report-features
           path: e2e/playwright-report/
           retention-days: 7
 
@@ -118,7 +106,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: server-logs
+          name: server-logs-features
           path: |
             backend/backend.log
             frontend/frontend.log

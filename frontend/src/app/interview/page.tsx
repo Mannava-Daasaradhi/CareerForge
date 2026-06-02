@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import { API_BASE, getAuthHeaders } from "@/lib/api";
 
 // --- TYPES ---
 interface Message {
@@ -98,11 +99,9 @@ export default function InterviewPage() {
     formData.append("history", JSON.stringify([])); // Backend now handles history via graph memory, but we pass empty for compat
 
     try {
-      const res = await fetch("http://localhost:8000/api/interview/voice-chat", {
+      const res = await fetch(`${API_BASE}/interview/voice-chat`, {
         method: "POST",
-        headers: {
-             // "Authorization": "Bearer ..." // If using Auth
-        },
+        headers: { ...(await getAuthHeaders()) },
         body: formData,
       });
 
@@ -139,9 +138,9 @@ export default function InterviewPage() {
     }
 
     try {
-      const res = await fetch("http://localhost:8000/api/interview/chat", {
+      const res = await fetch(`${API_BASE}/interview/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({
           message: text,
           topic: setup.topic,

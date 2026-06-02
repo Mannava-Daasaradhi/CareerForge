@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import { API_BASE, getAuthHeaders } from "@/lib/api";
 
 // --- TYPES ---
 interface JobOpportunity {
@@ -39,9 +40,9 @@ export default function HunterPage() {
       // Convert comma-separated gaps string to array
       const gapList = criteria.gaps.split(",").map(s => s.trim()).filter(Boolean);
 
-      const res = await fetch("http://localhost:8000/api/career/hunt", {
+      const res = await fetch(`${API_BASE}/career/hunt`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({
           target_role: criteria.role,
           location: criteria.location,
@@ -74,9 +75,9 @@ export default function HunterPage() {
     setTrackedIds(newSet);
 
     try {
-        await fetch("http://localhost:8000/api/kanban/add", {
+        await fetch(`${API_BASE}/kanban/add`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
             body: JSON.stringify({
                 role_title: job.role_title,
                 company_name: job.company,

@@ -58,13 +58,18 @@ app.add_middleware(
 )
 
 # --- AUTHENTICATION LAYER ---
-security = HTTPBearer()
+# auto_error=False so a *missing* Authorization header reaches get_current_user
+# (instead of FastAPI short-circuiting with a 403). We then return 401 for both
+# missing and invalid tokens — the semantically correct "Unauthorized" status.
+security = HTTPBearer(auto_error=False)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Validates the JWT sent by the frontend against Supabase Auth.
     Returns the user_id (UUID) if valid, otherwise 401.
     """
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     token = credentials.credentials
     try:
         if not db_manager.enabled:

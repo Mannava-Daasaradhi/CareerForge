@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import { API_BASE, getAuthHeaders } from "@/lib/api";
 
 // --- TYPES ---
 interface OutreachDraft {
@@ -37,9 +38,9 @@ export default function OutreachPage() {
     setIsCopied(false);
 
     try {
-      const res = await fetch("http://localhost:8000/api/network/generate", {
+      const res = await fetch(`${API_BASE}/network/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({
           username: target.name || "Candidate", // Backend uses this to sign off
           target_company: target.company,
@@ -78,9 +79,9 @@ export default function OutreachPage() {
 
     // 2. Log to Kanban (Auto-Sync)
     try {
-        await fetch("http://localhost:8000/api/kanban/add", {
+        await fetch(`${API_BASE}/kanban/add`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
             body: JSON.stringify({
                 role_title: target.role,
                 company_name: target.company,
