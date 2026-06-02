@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
+import { API_BASE, getAuthHeaders } from '@/lib/api';
 
 // --- TYPES ---
 interface CandidatePreview {
@@ -111,9 +112,9 @@ export default function RecruiterPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/recruiter/ask", {
+      const res = await fetch(`${API_BASE}/recruiter/ask`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({
           username: targetUser,
           question: userMsg

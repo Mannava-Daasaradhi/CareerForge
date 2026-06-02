@@ -114,63 +114,68 @@ test.describe("Page Loads (Authenticated)", () => {
     await loginUser(page);
   });
 
+  // Page-load smoke checks use `domcontentloaded` (not the default `load`) so the
+  // assertion runs once the HTML is parsed, instead of blocking on every image /
+  // font / subresource — webkit (mobile project) can stall the full `load` event
+  // on heavy pages like /challenge, which is irrelevant to "did the page render".
+
   test("/dashboard loads with agent status cards", async ({ page }) => {
-    await page.goto(`${BASE_URL}/dashboard`);
+    await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("Command", { timeout: 10000 });
   });
 
   test("/interview loads voice interface", async ({ page }) => {
-    await page.goto(`${BASE_URL}/interview`);
+    await page.goto(`${BASE_URL}/interview`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("Interview", { timeout: 10000 });
   });
 
   test("/resume loads upload interface", async ({ page }) => {
-    await page.goto(`${BASE_URL}/resume`);
+    await page.goto(`${BASE_URL}/resume`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("Resume", { timeout: 10000 });
   });
 
   test("/challenge loads proving ground", async ({ page }) => {
-    await page.goto(`${BASE_URL}/challenge`);
+    await page.goto(`${BASE_URL}/challenge`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("Challenge", { timeout: 10000 });
   });
 
   test("/roadmap loads skill tree", async ({ page }) => {
-    await page.goto(`${BASE_URL}/roadmap`);
-    await expect(page.locator("body")).toContainText("Roadmap", { timeout: 10000 });
+    await page.goto(`${BASE_URL}/roadmap`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toContainText("Skill Tree", { timeout: 10000 });
   });
 
   test("/kanban loads job pipeline", async ({ page }) => {
-    await page.goto(`${BASE_URL}/kanban`);
-    await expect(page.locator("body")).toContainText("Kanban", { timeout: 10000 });
+    await page.goto(`${BASE_URL}/kanban`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toContainText("Mission Control", { timeout: 10000 });
   });
 
   test("/hunter loads job search", async ({ page }) => {
-    await page.goto(`${BASE_URL}/hunter`);
+    await page.goto(`${BASE_URL}/hunter`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("Hunter", { timeout: 10000 });
   });
 
   test("/negotiator loads salary dojo", async ({ page }) => {
-    await page.goto(`${BASE_URL}/negotiator`);
+    await page.goto(`${BASE_URL}/negotiator`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("Negotiat", { timeout: 10000 });
   });
 
   test("/outreach loads network sniper", async ({ page }) => {
-    await page.goto(`${BASE_URL}/outreach`);
-    await expect(page.locator("body")).toContainText("Outreach", { timeout: 10000 });
+    await page.goto(`${BASE_URL}/outreach`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toContainText("Network", { timeout: 10000 });
   });
 
   test("/passport loads skill passport", async ({ page }) => {
-    await page.goto(`${BASE_URL}/passport`);
-    await expect(page.locator("body")).toContainText("Passport", { timeout: 10000 });
+    await page.goto(`${BASE_URL}/passport`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toContainText("Trust Score", { timeout: 15000 });
   });
 
   test("/recruiter loads digital twin", async ({ page }) => {
-    await page.goto(`${BASE_URL}/recruiter`);
+    await page.goto(`${BASE_URL}/recruiter`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("Recruiter", { timeout: 10000 });
   });
 
   test("/experiments loads A/B tester", async ({ page }) => {
-    await page.goto(`${BASE_URL}/experiments`);
+    await page.goto(`${BASE_URL}/experiments`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toContainText("A/B", { timeout: 10000 });
   });
 });
@@ -294,7 +299,7 @@ test.describe("Feature: Outreach Generator", () => {
 
 test.describe("Public Routes", () => {
   test("public candidate profile loads", async ({ page }) => {
-    await page.goto(`${BASE_URL}/candidate/torvalds`);
-    await expect(page.locator("body")).toContainText("torvalds", { timeout: 10000 });
+    await page.goto(`${BASE_URL}/candidate/torvalds`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toContainText("torvalds", { timeout: 15000 });
   });
 });

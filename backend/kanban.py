@@ -16,10 +16,12 @@ logger = get_logger(__name__)
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class Application(BaseModel):
-    company: str
-    role: str
-    status: str = "applied"          # applied | interviewing | offer | rejected
-    job_url: Optional[str] = None
+    # Field names MUST match the Supabase `applications` table schema
+    # (role_title, company_name, status, salary_range, notes).
+    role_title: str
+    company_name: str
+    status: str = "Wishlist"         # Wishlist | Applied | Interview | Offer | Rejected
+    salary_range: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -51,7 +53,7 @@ def add_application(app: Application, user_id: str) -> dict:
             **app.dict(),
             "user_id": user_id,          # ← FIX: was missing, caused non-null constraint failure
         }).execute()
-        logger.info("Application added for user %s at %s", user_id, app.company)
+        logger.info("Application added for user %s at %s", user_id, app.company_name)
         return result.data[0] if result.data else {}
     except Exception as e:
         logger.error("Failed to insert application: %s", str(e))
@@ -132,7 +134,7 @@ def analyze_rejection(app_id: str, feedback: str = "", user_id: str = "") -> dic
                 .execute()
             if result.data:
                 app = result.data[0]
-                application_context = f"Company: {app.get('company', 'Unknown')}, Role: {app.get('role', 'Unknown')}"
+                application_context = f"Company: {app.get('company_name', 'Unknown')}, Role: {app.get('role_title', 'Unknown')}"
         except Exception as e:
             logger.warning("Could not fetch application for rejection analysis: %s", str(e))
 

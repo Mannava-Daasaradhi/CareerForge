@@ -1,0 +1,42 @@
+# render.yaml — Render Blueprint for the CareerForge backend.
+#
+# The backend previously ran on Railway (free tier, now expired). This deploys the
+# same Docker image to Render — where the frontend already lives — on the free tier.
+#
+# One-time setup:
+#   1. Render Dashboard → New → Blueprint → pick this repo. It reads this file.
+#   2. When prompted, paste the secret values (envVars below with `sync: false`).
+#      Use the same values as backend/.env (GROQ/GOOGLE/SUPABASE keys, GitHub token).
+#   3. Deploy. Render gives you a URL like https://careerforge-backend.onrender.com
+#   4. In the FRONTEND service on Render, set
+#        NEXT_PUBLIC_API_BASE = https://careerforge-backend.onrender.com/api
+#      then redeploy the frontend so the live site talks to the new backend.
+#
+# No secret values are stored in this file — `sync: false` makes Render prompt for
+# them in the dashboard instead.
+
+services:
+  - type: web
+    name: careerforge-backend
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      # The GitHub Auditor reads GITHUB_TOKEN (used here as a plain env var, not a
+      # GitHub Actions secret, so the GITHUB_ prefix restriction does not apply).
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: PISTON_API_URL
+        value: https://emkc.org/api/v2/piston

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import { API_BASE } from "@/lib/api";
 
 // --- TYPES ---
 interface AuditResult {
@@ -47,7 +48,7 @@ export default function ResumePage() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://localhost:8000/api/resume/upload", {
+      const res = await fetch(`${API_BASE}/resume/upload`, {
         method: "POST",
         body: formData,
       });
@@ -76,7 +77,7 @@ export default function ResumePage() {
     formData.append("job_description", jobDesc);
 
     try {
-      const res = await fetch("http://localhost:8000/api/resume/tailor", {
+      const res = await fetch(`${API_BASE}/resume/tailor`, {
         method: "POST",
         body: formData,
       });
@@ -98,7 +99,7 @@ export default function ResumePage() {
     formData.append("job_description", jobDesc);
 
     try {
-      const res = await fetch("http://localhost:8000/api/experiments/run", {
+      const res = await fetch(`${API_BASE}/experiments/run`, {
         method: "POST",
         body: formData,
       });
